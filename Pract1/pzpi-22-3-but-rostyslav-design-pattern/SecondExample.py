@@ -58,4 +58,4 @@ xml_service = XMLServiceAdapter()  # Обгортаємо старий серв�
 json_app = JSONApp()
 
 json_data = xml_service.get_data()  # Отримуємо вже готовий JSON
-json_app.display_data(json_data)  # Все працює автоматично!
+json_app.display_data(json_data)  # Все працює автоматично
