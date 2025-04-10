@@ -3,59 +3,57 @@
 import xml.etree.ElementTree as ET
 import json
 
+# Стара система повертає XML
 class XMLService:
-    """Старий сервіс, який повертає дані у форматі XML"""
-    def get_data(self):
-        return """<data>
-                    <temperature>25</temperature>
-                    <humidity>60</humidity>
-                  </data>"""
+    def get_xml(self):
+        return "<person><name>John</name><age>30</age></person>"
 
-class JSONApp:
-    """Новий застосунок, який працює тільки з JSON"""
-    def display_data(self, data_json):
-        print(f"Received JSON data: {data_json}")
+# Клієнтський код
+def process_data():
+    xml_service = XMLService()
+    xml_data = xml_service.get_xml()
 
-# Використання без адаптера (ручне перетворення)
-xml_service = XMLService()
-json_app = JSONApp()
+    # Ручне перетворення
+    root = ET.fromstring(xml_data)
+    json_data = {
+        "name": root.find("name").text,
+        "age": int(root.find("age").text)
+    }
 
-xml_data = xml_service.get_data()  # Отримуємо XML
-root = ET.fromstring(xml_data)  # Розбираємо XML вручну
-data = {child.tag: int(child.text) for child in root}  # Конвертуємо в словник
-json_data = json.dumps(data)  # Перетворюємо у JSON
+    print("Processed JSON:", json.dumps(json_data, indent=2))
 
-json_app.display_data(json_data)  # Ручна конвертація кожного разу
+process_data()
 
 
 # Код з класовим адаптером (автоматична конвертація)
 import xml.etree.ElementTree as ET
 import json
 
+# Стара система (Adaptee)
 class XMLService:
-    """Старий сервіс, який повертає дані у форматі XML"""
-    def get_data(self):
-        return """<data>
-                    <temperature>25</temperature>
-                    <humidity>60</humidity>
-                  </data>"""
+    def get_xml(self):
+        return "<person><name>John</name><age>30</age></person>"
 
-class XMLServiceAdapter(XMLService):
-    """Класовий адаптер, який успадковує XMLService та конвертує XML → JSON"""
-    def get_data(self):
-        xml_data = super().get_data()  # Викликаємо метод батьківського класу
+# Новий інтерфейс (Target)
+class JSONServiceInterface:
+    def get_json(self):
+        pass
+
+# Класовий адаптер
+class XMLtoJSONAdapter(XMLService, JSONServiceInterface):
+    def get_json(self):
+        xml_data = self.get_xml()
         root = ET.fromstring(xml_data)
-        data = {child.tag: int(child.text) for child in root}
-        return json.dumps(data)  # Повертаємо JSON
+        return {
+            "name": root.find("name").text,
+            "age": int(root.find("age").text)
+        }
 
-class JSONApp:
-    """Новий застосунок, який працює тільки з JSON"""
-    def display_data(self, data_json):
-        print(f"Received JSON data: {data_json}")
+# Клієнтський код
+def process_data():
+    adapter = XMLtoJSONAdapter()
+    json_data = adapter.get_json()
+    print("Processed JSON:", json.dumps(json_data, indent=2))
 
-# Використання адаптера (автоматична конвертація)
-xml_service = XMLServiceAdapter()  # Обгортаємо старий сервіс у адаптер
-json_app = JSONApp()
+process_data()
 
-json_data = xml_service.get_data()  # Отримуємо вже готовий JSON
-json_app.display_data(json_data)  # Все працює автоматично
