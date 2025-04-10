@@ -1,61 +1,58 @@
 # Приклад 1: API-запити (Об’єктний адаптер)
 
 # Код без адаптера (ручне перетворення)
-import requests  
+# Старий API (Adaptee)
+class LegacyAPI:
+    def get_data(self):
+        # Повертає дані у старому форматі
+        return {"name": "John", "surname": "Doe", "age": 30}
 
-class OldWeatherAPI:
-    """Старий API повертає температуру у градусах Цельсія"""
-    def get_temperature(self, city):
-        # Імітуємо запит до API, яке повертає температуру в °C
-        print(f"Fetching weather data for {city}...")
-        return {"city": city, "temperature": 20}  # 20°C
+# Клієнтський код (новий формат очікує об'єднане ім'я)
+def process_data():
+    legacy = LegacyAPI()
+    data = legacy.get_data()
+    
+    # Ручна адаптація
+    full_name = f"{data['name']} {data['surname']}"
+    new_data = {
+        "fullName": full_name,
+        "age": data["age"]
+    }
+    
+    print("Processed data:", new_data)
 
-class WeatherApp:
-    """Додаток, який очікує температуру у Фаренгейтах"""
-    def display_temperature(self, temperature_fahrenheit):
-        print(f"Current temperature in {temperature_fahrenheit}°F")
+process_data()
 
-# Використання без адаптера (ручне перетворення)
-old_api = OldWeatherAPI()
-weather_app = WeatherApp()
-
-data = old_api.get_temperature("Kyiv")  # Отримуємо температуру в °C
-temperature_celsius = data["temperature"]
-temperature_fahrenheit = (temperature_celsius * 9/5) + 32  # Ручне перетворення
-
-weather_app.display_temperature(temperature_fahrenheit)  # Ручна конвертація
 
 
 # Код з об’єктним адаптером (автоматична конвертація)
-import requests 
+# Старий API (Adaptee)
+class LegacyAPI:
+    def get_data(self):
+        return {"name": "John", "surname": "Doe", "age": 30}
 
-class OldWeatherAPI:
-    """Старий API повертає температуру у градусах Цельсія"""
-    def get_temperature(self, city):
-        print(f"Fetching weather data for {city}...")
-        return {"city": city, "temperature": 20}  # 20°C
+# Новий інтерфейс (Target)
+class NewAPIInterface:
+    def get_formatted_data(self):
+        pass
 
-class WeatherAdapter:
-    """Адаптер, який конвертує температуру в потрібний формат"""
-    def __init__(self, old_api):
-        self.old_api = old_api  # Композиція (адаптер містить старий API)
+# Адаптер (Object Adapter)
+class LegacyAPIAdapter(NewAPIInterface):
+    def __init__(self, legacy_api):
+        self.legacy_api = legacy_api
 
-    def get_temperature_fahrenheit(self, city):
-        """Отримує температуру у Фаренгейтах"""
-        data = self.old_api.get_temperature(city)
-        celsius = data["temperature"]
-        fahrenheit = (celsius * 9/5) + 32
-        return {"city": city, "temperature": fahrenheit}
+    def get_formatted_data(self):
+        old_data = self.legacy_api.get_data()
+        return {
+            "fullName": f"{old_data['name']} {old_data['surname']}",
+            "age": old_data["age"]
+        }
 
-class WeatherApp:
-    """Додаток, який очікує температуру у Фаренгейтах"""
-    def display_temperature(self, temperature_fahrenheit):
-        print(f"Current temperature in {temperature_fahrenheit}°F")
+# Клієнтський код
+def process_data():
+    adapter = LegacyAPIAdapter(LegacyAPI())
+    new_data = adapter.get_formatted_data()
+    print("Processed data:", new_data)
 
-# Використання адаптера (автоматична конвертація)
-old_api = OldWeatherAPI()
-adapter = WeatherAdapter(old_api)  # Обгортаємо старий API адаптером
-weather_app = WeatherApp()
+process_data()
 
-data = adapter.get_temperature_fahrenheit("Kyiv")  # Отримуємо вже готові °F
-weather_app.display_temperature(data["temperature"])  # Все працює автоматично
