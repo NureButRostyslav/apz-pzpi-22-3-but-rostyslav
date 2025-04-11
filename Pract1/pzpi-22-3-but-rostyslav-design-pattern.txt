@@ -39,7 +39,7 @@
 1   18.03.2025        0.1            Створено загальну структуру звіту. Написано пункт 2.
 2   19.03.2025        0.1            Написані пункти 3 та 4.
 3   20.03.2025        0.1            Додано слайди презентації в додатку Б. Додано приклади програмного коду в додатку В.
-4   21.03.2025        0.1            Створено та завантажено відеопояснення на платформу YouTube в додатку А.
+4   12.04.2025        0.1            Створено та завантажено відеопояснення на платформу YouTube в додатку А.
 
 
 2 ЗАВДАННЯ
@@ -75,269 +75,161 @@
 Відеозапис доповіді на YouTube: https://
 
 Хронологічний опис доповіді:
-
 00:00-00:15 – Вітання. Оголошується ім’я доповідача, його академічна група та тема доповіді.
 00:15-00:35 – Зміст. Короткий огляд основних тем, що будуть розглянуті у презентації.
-00:35-01:05 – Вступ. Актуальність патерна Adapter у сучасній розробці. Чому важливо розуміти цей патерн?
-01:05-01:40 – Що таке патерн Adapter? Визначення патерна та його ключова роль у програмуванні.
-01:40-02:15 – Проблематика розробки. Чому виникає проблема несумісності інтерфейсів.
+00:35-01:05 – Вступ. Актуальність патерна Adapter у сучасній розробці. Пояснення важливості патерну.
+01:05-01:40 – Визначення патерна та його ключова роль у програмуванні.
+01:40-02:15 – Проблематика розробки. Чому виникає проблема несумісності інтерфейсів? Реальні приклади з практики.
 02:15-02:50 – Рішення: Використання Adapter як об'єкта-перекладача. Як адаптер допомагає об'єднати несумісні системи?
 02:50-03:30 – Принцип роботи Adapter: Об’єктний та класовий підходи. Пояснення двох підходів реалізації: об’єктного та класового адаптерів.
-03:30-04:10 – Приклад 1: Код без адаптера (Об’єктний Adapter). Демонстрація проблеми несумісності API без адаптера.
-04:10-04:50 – Приклад 2: Код із адаптером (Об’єктний Adapter). Реалізація рішення з використанням об’єктного адаптера.
-04:50-05:30 – Приклад 3: Код без адаптера (Класовий Adapter). Проблема перетворення XML у JSON без адаптера.
-05:30-06:10 – Приклад 4: Код із адаптером (Класовий Adapter). Використання класового адаптера для автоматизації перетворення форматів.
-06:10-06:50 – Переваги використання адаптера. Різниця адаптера від функції. Чому адаптер є більш гнучким рішенням, ніж прості функції або рефакторинг коду?
-06:50-07:30 – Переваги та недоліки. Аналіз сильних і слабких сторін патерна Adapter у розробці програмного забезпечення.
-07:30-08:10 – Коли потрібно та коли не потрібно використовувати патерн. Рекомендації щодо застосування в реальних проєктах.
+03:30-04:10 – Приклад 1: Код з використанням об’єктного підходу. Демонстрація проблеми несумісності API без адаптера.
+04:50-05:30 – Приклад 2: Код з використанням класового підходу. Проблема перетворення XML у JSON без адаптера.
+06:50-07:30 – Переваги та недоліки. Аналіз сильних і слабких сторін різних підходів патерну Adapter у розробці програмного забезпечення.
 08:10-08:40 – Висновки. Підсумок основних ідей доповіді.
-08:40-09:00 – Список використаних джерел. Посилання на книги, документацію та матеріали, використані у доповіді.
-
+08:40-09:00 – Список використаних джерел. Посилання на книги та документацію, використані у доповіді.
 
 
 ДОДАТОК Б
 Слайди презентації
 
-
 Рисунок Б.1 – Титульний лист
-
-
+  
 Рисунок Б.2 – Зміст доповіді
- 
 
 Рисунок Б.3 – Вступ. Проблема несумісності інтерфейсів
-
-
+ 
 Рисунок Б.4 – Загальне визначення патерна
-
 
 Рисунок Б.5 – Проблематика розробки
 
-
 Рисунок Б.6 – Використання Adapter як об'єкта-перекладача
-
  
 Рисунок Б.7 – Принцип роботи Adapter: Об’єктний та класовий підходи
 
+Рисунок Б.8 – Приклад використання об’єктного підходу
+
+Рисунок Б.9  – Приклад використання класового підходу
+
+Рисунок Б.10 – Переваги та недоліки об’єктного та класового підходів
  
-Рисунок Б.8 – Код без адаптера (Об’єктний Adapter)
-
-
-Рисунок Б.9  – Код із адаптером (Об’єктний Adapter)
-
-   
-Рисунок Б.10 – Код без адаптера (Класовий Adapter)
-
- 
-Рисунок Б.11 – Код із адаптером (Класовий Adapter)
-
-
-Рисунок Б.12 – Переваги використання адаптера. Різниця адаптера від функції
-
-
-Рисунок Б.13 – Сильні та слабкі сторони використання патерна 
-
-
-Рисунок Б.14 – Рекомендації щодо застосування патерна
-
- 
-Рисунок Б.15 – Підсумок основних ідей та висновки
-
-
-Рисунок Б.16 – Список використаних джерел
-
+Рисунок Б.11 – Підсумок основних ідей та висновки
+  
+Рисунок Б.12 – Список використаних джерел
 
 
 ДОДАТОК В
 Приклади програмного коду
 
 
-Приклад 1: API-запити (Об’єктний адаптер)
+Приклад 1: API-запити (Об’єктний адаптер):
+1.1 Без адаптера (ручна адаптація формату):
+1. # Старий API (Adaptee)
+2. class LegacyAPI:
+3.     def get_data(self):
+4.         # Повертає дані у старому форматі
+5.         return {"name": "John", "surname": "Doe", "age": 30}
+6. 
+7. # Клієнтський код (новий формат очікує об'єднане ім'я)
+8. def process_data():
+9.     legacy = LegacyAPI()
+10.     data = legacy.get_data()
+11. 
+12.     # Ручна адаптація
+13.     full_name = f"{data['name']} {data['surname']}"
+14.     new_data = {
+15.         "fullName": full_name,
+16.         "age": data["age"]
+17.     }
+18. 
+19.     print("Processed data:", new_data)
+20. 
+21. process_data()
 
+1.2 З адаптером (об’єктний адаптер):
+1. # Старий API (Adaptee)
+2. class LegacyAPI:
+3.     def get_data(self):
+4.         return {"name": "John", "surname": "Doe", "age": 30}
+5. 
+6. # Новий інтерфейс (Target)
+7. class NewAPIInterface:
+8.     def get_formatted_data(self):
+9.         pass
+10. 
+11. # Адаптер (Object Adapter)
+12. class LegacyAPIAdapter(NewAPIInterface):
+13.     def __init__(self, legacy_api):
+14.         self.legacy_api = legacy_api
+15. 
+16.     def get_formatted_data(self):
+17.         old_data = self.legacy_api.get_data()
+18.         return {
+19.             "fullName": f"{old_data['name']} {old_data['surname']}",
+20.             "age": old_data["age"]
+21.         }
+22. 
+23. # Клієнтський код
+24. def process_data():
+25.     adapter = LegacyAPIAdapter(LegacyAPI())
+26.     new_data = adapter.get_formatted_data()
+27.     print("Processed data:", new_data)
+28. 
+29. process_data()
 
-1.# Код без адаптера (ручне перетворення)  
-2.  
-3.import requests    
-4.  
-5.class OldWeatherAPI:  
-6.    """Старий API повертає температуру у градусах Цельсія"""  
-7.  
-8.    def get_temperature(self, city):  
-9.        # Імітуємо запит до API, яке повертає температуру в °C  
-10.        print(f"Fetching weather data for {city}...")  
-11.        return {"city": city, "temperature": 20}  # 20°C  
-12.  
-13.class WeatherApp:  
-14.    """Додаток, який очікує температуру у Фаренгейтах"""  
-15.  
-16.    def display_temperature(self, temperature_fahrenheit):  
-17.        print(f"Current temperature in {temperature_fahrenheit}°F")  
-18.  
-19.# Використання без адаптера (ручне перетворення)  
-20.  
-21.old_api = OldWeatherAPI()  
-22.weather_app = WeatherApp()  
-23.  
-24.data = old_api.get_temperature("Kyiv")  # Отримуємо температуру в °C  
-25.temperature_celsius = data["temperature"]  
-26.temperature_fahrenheit = (temperature_celsius * 9/5) + 32  # Ручне перетворення  
-27.  
-28.weather_app.display_temperature(temperature_fahrenheit)  # Ручна конвертація  
-29.  
-30.# Код з об’єктним адаптером (автоматична конвертація)  
-31.  
-32.import requests  
-33.  
-34.class OldWeatherAPI:  
-35.    """Старий API повертає температуру у градусах Цельсія"""  
-36.  
-37.    def get_temperature(self, city):  
-38.        print(f"Fetching weather data for {city}...")  
-39.        return {"city": city, "temperature": 20}  # 20°C  
-40.  
-41.class WeatherAdapter:  
-42.    """Адаптер, який конвертує температуру в потрібний формат"""  
-43.  
-44.    def __init__(self, old_api):  
-45.        self.old_api = old_api  # Композиція (адаптер містить старий API)  
-46.  
-47.    def get_temperature_fahrenheit(self, city):  
-48.        """Отримує температуру у Фаренгейтах"""  
-49.        data = self.old_api.get_temperature(city)  
-50.        celsius = data["temperature"] 
-51.        fahrenheit = (celsius * 9/5) + 32  
-52.        return {"city": city, "temperature": fahrenheit}  
-53.  
-54.class WeatherApp:  
-55.    """Додаток, який очікує температуру у Фаренгейтах"""  
-56.  
-57.    def display_temperature(self, temperature_fahrenheit):  
-58.        print(f"Current temperature in {temperature_fahrenheit}°F")  
-59.  
-60.# Використання адаптера (автоматична конвертація)  
-61.  
-62.old_api = OldWeatherAPI()  
-63.adapter = WeatherAdapter(old_api)  # Обгортаємо старий API адаптером  
-64.weather_app = WeatherApp()  
-65.  
-66.data = adapter.get_temperature_fahrenheit("Kyiv")  # Отримуємо вже готові °F  
-67.weather_app.display_temperature(data["temperature"])  # Все працює автоматично  
+Приклад 2: Конвертація XML → JSON (Класовий адаптер):
+2.1 Без адаптера (ручне перетворення XML → JSON):
+1. import xml.etree.ElementTree as ET
+2. import json
+3. 
+4. # Стара система повертає XML
+5. class XMLService:
+6.     def get_xml(self):
+7.         return "<person><name>John</name><age>30</age></person>"
+8. 
+9. # Клієнтський код
+10. def process_data():
+11.     xml_service = XMLService()
+12.     xml_data = xml_service.get_xml()
+13. 
+14.     # Ручне перетворення
+15.     root = ET.fromstring(xml_data)
+16.     json_data = {
+17.         "name": root.find("name").text,
+18.         "age": int(root.find("age").text)
+19.     }
+20. 
+21.     print("Processed JSON:", json.dumps(json_data, indent=2))
+22. 
+23. process_data()
 
-
-
-
-Приклад 2: Конвертація XML → JSON (Класовий адаптер)
-
-
-1.# Код без адаптера (ручне перетворення)  
-2.  
-3.import xml.etree.ElementTree as ET  
-4.import json  
-5.  
-6.class XMLService:  
-7.    """Старий сервіс, який повертає дані у форматі XML"""  
-8.  
-9.    def get_data(self):  
-10.        return """<data>  
-11.                    <temperature>25</temperature>  
-12.                    <humidity>60</humidity>  
-13.                  </data>"""  
-14.  
-15.class JSONApp:  
-16.    """Новий застосунок, який працює тільки з JSON"""  
-17.  
-18.    def display_data(self, data_json):  
-19.        print(f"Received JSON data: {data_json}")  
-20.  
-21.# Використання без адаптера (ручне перетворення)  
-22.  
-23.xml_service = XMLService()  
-24.json_app = JSONApp()  
-25.  
-26.xml_data = xml_service.get_data()  # Отримуємо XML  
-27.root = ET.fromstring(xml_data)  # Розбираємо XML вручну  
-28.data = {child.tag: int(child.text) for child in root}  # Конвертуємо в словник  
-29.json_data = json.dumps(data)  # Перетворюємо у JSON  
-30.  
-31.json_app.display_data(json_data)  # Ручна конвертація кожного разу  
-32.  
-33.# Код з класовим адаптером (автоматична конвертація)  
-34.  
-35.import xml.etree.ElementTree as ET  
-36.import json  
-37.  
-38.class XMLService:  
-39.    """Старий сервіс, який повертає дані у форматі XML"""  
-40.  
-41.    def get_data(self):  
-42.        return """<data>  
-43.                    <temperature>25</temperature>  
-44.                    <humidity>60</humidity>  
-45.                  </data>"""  
-46.  
-47.class XMLServiceAdapter(XMLService):  
-48.    """Класовий адаптер, який успадковує XMLService та конвертує XML → JSON"""  
-49.  
-50.    def get_data(self):  
-51.        xml_data = super().get_data()  # Викликаємо метод батьківського класу  
-52.        root = ET.fromstring(xml_data)  
-53.        data = {child.tag: int(child.text) for child in root}  
-54.        return json.dumps(data)  # Повертаємо JSON  
-55.  
-56.class JSONApp:  
-57.    """Новий застосунок, який працює тільки з JSON"""  
-58.  
-59.    def display_data(self, data_json):  
-60.        print(f"Received JSON data: {data_json}")  
-61.  
-62.# Використання адаптера (автоматична конвертація)  
-63.  
-64.xml_service = XMLServiceAdapter()  # Обгортаємо старий сервіс у адаптер  
-65.json_app = JSONApp()  
-66.  
-67.json_data = xml_service.get_data()  # Отримуємо вже готовий JSON  
-68.json_app.display_data(json_data)  # Все працює автоматично  
-
-
-
-
-Приклад звичайної функції (перетворення XML у JSON):
-
-1.import json  
-2.import xml.etree.ElementTree as ET  
-3.  
-4.def xml_to_json(xml_string):  
-5.    root = ET.fromstring(xml_string)  
-6.    data = {child.tag: child.text for child in root}  
-7.    return json.dumps(data, indent=4)  
-8.  
-9.xml_data = "<data><name>John</name><age>30</age></data>"  
-10.json_data = xml_to_json(xml_data)  
-11.print(json_data)  
-12.  
-13.# Приклад адаптера (Об'єктний адаптер, який дозволяє API працювати з XML, а не лише з JSON)  
-14.  
-15.import json  
-16.import xml.etree.ElementTree as ET  
-17.  
-18.# API, який працює лише з JSON  
-19.class JsonAPI:  
-20.    def send_request(self, json_data):  
-21.        print(f"Sending JSON data to API: {json_data}")  
-22.  
-23.# Адаптер, який дозволяє працювати з XML, перетворюючи його у JSON  
-24.class XmlToJsonAdapter:  
-25.    def __init__(self, json_api):  
-26.        self.json_api = json_api  
-27.  
-28.    def send_request(self, xml_data):  
-29.        root = ET.fromstring(xml_data)  
-30.        data = {child.tag: child.text for child in root}  
-31.        json_data = json.dumps(data, indent=4)  
-32.        self.json_api.send_request(json_data)  
-33.  
-34.# Використання адаптера  
-35.xml_data = "<data><name>John</name><age>30</age></data>"  
-36.json_api = JsonAPI()  
-37.adapter = XmlToJsonAdapter(json_api)  
-38.adapter.send_request(xml_data)
+2.2 З адаптером (класовий адаптер):
+1. import xml.etree.ElementTree as ET
+2. import json
+3. 
+4. # Стара система (Adaptee)
+5. class XMLService:
+6.     def get_xml(self):
+7.         return "<person><name>John</name><age>30</age></person>"
+8. 
+9. # Новий інтерфейс (Target)
+10. class JSONServiceInterface:
+11.     def get_json(self):
+12.         pass
+13. 
+14. # Класовий адаптер
+15. class XMLtoJSONAdapter(XMLService, JSONServiceInterface):
+16.     def get_json(self):
+17.         xml_data = self.get_xml()
+18.         root = ET.fromstring(xml_data)
+19.         return {
+20.             "name": root.find("name").text,
+21.             "age": int(root.find("age").text)
+22.         }
+23. 
+24. # Клієнтський код
+25. def process_data():
+26.     adapter = XMLtoJSONAdapter()
+27.     json_data = adapter.get_json()
+28.     print("Processed JSON:", json.dumps(json_data, indent=2))
+29. 
+30. process_data()
