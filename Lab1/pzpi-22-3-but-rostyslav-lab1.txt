@@ -82,17 +82,18 @@ Prepared by Бут Ростислав
 
 
 Зміст
-1 BUSINESS REQUIREMENTS (БІЗНЕС-ВИМОГИ)                                7 
-   1.1 Background (Передумови)                                         8 
-   1.2 Business Opportunity (Бізнес-можливості)                        6 
-2 VISION OF THE SOLUTION (КОНЦЕПЦІЯ РІШЕННЯ)                           11 
-   2.1 Vision Statement (Окреслення концепції)                         11 
+1 BUSINESS REQUIREMENTS (БІЗНЕС-ВИМОГИ)                                7
+   1.1 Background (Передумови)                                         7
+   1.2 Business Opportunity (Бізнес-можливості)                        8
+2 VISION OF THE SOLUTION (КОНЦЕПЦІЯ РІШЕННЯ)                           11
+   2.1 Vision Statement (Окреслення концепції)                         11
    2.2 Major Features (Головна функціональність)                       12 
 3 SCOPE AND LIMITATIONS (РАМКИ ТА ОБМЕЖЕННЯ ПРОЄКТУ)                   13
-   3.1 Scope of Initial Release (Рамки первинного випуску)             13 
-   3.2 Scope of Subsequent Releases (Рамки наступних випусків)         14
-4 BUSINESS CONTEXT (БІЗНЕС-КОНТЕКСТ)                                   14 
-   4.3 Operating Enviroment (Робоче середовище)                        14
+   3.1 Scope of Initial Release (Рамки первинного випуску)             13
+   3.2 Scope of Subsequent Releases (Рамки наступних випусків)         15
+   3.3 Limitations and Exclusions (Обмеження та виключення)            15
+4 BUSINESS CONTEXT (БІЗНЕС-КОНТЕКСТ)                                   16
+   4.3 Operating Enviroment (Робоче середовище)                        16
  
 
 
