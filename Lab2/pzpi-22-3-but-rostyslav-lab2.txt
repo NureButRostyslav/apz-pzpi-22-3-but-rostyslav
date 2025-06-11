@@ -75,6 +75,8 @@
 ДОДАТОК В
 Програмний код
 
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab2/pzpi-22-3-but-rostyslav-lab2/api/views.py
+
 В.1 API для управління ресурсами
 1  from rest_framework import viewsets, status
 2  from rest_framework.decorators import api_view, permission_classes, parser_classes
@@ -609,8 +611,10 @@
 529             status=status.HTTP_404_NOT_FOUND
 530         )
 
+
 В.2 Моделі для управління користувачами, ресурсами, витратами, бюджетами та сповіщеннями.
 
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab2/pzpi-22-3-but-rostyslav-lab2/api/models.py
 
 1  from django.db import models
 2  from django.contrib.auth.models import User
@@ -717,7 +721,10 @@
 103    def __str__(self):
 104        return f"RFID Tag {self.tag_id} for {self.user.username}"
 
+
 В.3 Математична обробка даних. Аналіз ресурсів та прогнозування попиту. Код лінійної регресії.
+
+GitHub репозиторій:
 
 1  from django.db import models
 2  from django.contrib.auth.models import User
