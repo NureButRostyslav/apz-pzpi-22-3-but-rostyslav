@@ -77,7 +77,7 @@
 
 GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab2/pzpi-22-3-but-rostyslav-lab2/api/views.py
 
-В.1 API для управління ресурсами
+В.1 Адміністрування бізнес-логіки системи. API для управління ресурсами
 1  from rest_framework import viewsets, status
 2  from rest_framework.decorators import api_view, permission_classes, parser_classes
 3  from rest_framework.parsers import JSONParser
