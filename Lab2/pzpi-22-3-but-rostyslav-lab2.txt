@@ -827,3 +827,23 @@ GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3
 98         'confidence': round(1 - p_value, 2)
 99     }
 100
+
+
+В.4 Адміністрування бізнес-логіки системи.
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab2/pzpi-22-3-but-rostyslav-lab2/api/tasks.py
+
+1  from celery import shared_task
+2  import shutil
+3  from django.conf import settings
+4  from datetime import datetime
+5  from django.core.management import call_command
+6  
+7  @shared_task
+8  def daily_database_backup():
+9      call_command('dbbackup')
+10     
+11     backup_path = settings.BASE_DIR / 'backups' / f'db_backup_{timestamp}.sqlite3'
+12     shutil.copy(settings.DATABASES['default']['NAME'], backup_path)
+
+
