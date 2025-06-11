@@ -828,7 +828,7 @@ GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3
 100
 
 
-В.4 Адміністрування бізнес-логіки системи.
+В.4 Резервне копіювання користувацьких даних.
 
 GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab2/pzpi-22-3-but-rostyslav-lab2/api/tasks.py
 
