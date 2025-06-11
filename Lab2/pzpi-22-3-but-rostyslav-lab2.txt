@@ -32,7 +32,7 @@
 1 ІСТОРІЯ ЗМІН
 
 №	    Дата	    Версія звіту	Опис змін та виправлень
-1	  11.06.2025	    0.1	        Розроблено звіт
+1	  11.06.2025	    0.1	             Розроблено звіт
 
 2 ЗАВДАННЯ
 
@@ -724,7 +724,7 @@ GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3
 
 В.3 Математична обробка даних. Аналіз ресурсів та прогнозування попиту. Код лінійної регресії.
 
-GitHub репозиторій:
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab2/pzpi-22-3-but-rostyslav-lab2/coworking_system/resource_analytics.py
 
 1  from django.db import models
 2  from django.contrib.auth.models import User
