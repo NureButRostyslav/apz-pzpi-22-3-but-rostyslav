@@ -75,5 +75,747 @@
 ДОДАТОК В
 Програмний код
 
-В.1 Математична обробка прикладних даних. Допоміжні математичні операції.
+В.1 API для управління ресурсами
+1  from rest_framework import viewsets, status
+2  from rest_framework.decorators import api_view, permission_classes, parser_classes
+3  from rest_framework.parsers import JSONParser
+4  from rest_framework.response import Response
+5  from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+6  from django.contrib.auth import authenticate, login
+7  from django.contrib.auth.models import User
+8  from django.utils import timezone
+9  from drf_yasg.utils import swagger_auto_schema
+10 from drf_yasg import openapi
+11 from django.db import models
+12 from django.db.models import Sum
+13 from reportlab.lib.pagesizes import A4
+14 from reportlab.pdfgen import canvas
+15 from django.http import HttpResponse
+16 import io
+17 from channels.layers import get_channel_layer
+18 from asgiref.sync import async_to_sync
+19 from .models import UserProfile, Resource, Expense, Budget, ActionLog, Notification, RFIDTag
+20 from .serializers import (
+21     UserProfileSerializer,
+22     ResourceSerializer,
+23     ExpenseSerializer,
+24     BudgetSerializer,
+25     ActionLogSerializer,
+26     NotificationSerializer,
+27     RFIDTagSerializer,
+28 )
+29 
+30 # --- Login View ---
+31 @swagger_auto_schema(
+32     method='post',
+33     request_body=openapi.Schema(
+34         type=openapi.TYPE_OBJECT,
+35         required=['username', 'password'],
+36         properties={
+37             'username': openapi.Schema(type=openapi.TYPE_STRING, description='Username'),
+38             'password': openapi.Schema(type=openapi.TYPE_STRING, description='Password'),
+39         },
+40     ),
+41     responses={
+42         200: openapi.Response(
+43             description='Successful login',
+44             schema=openapi.Schema(
+45                 type=openapi.TYPE_OBJECT,
+46                 properties={'message': openapi.Schema(type=openapi.TYPE_STRING)}
+47             )
+48         ),
+49         401: openapi.Response(description='Invalid credentials'),
+50     }
+51 )
+52 @api_view(['POST'])
+53 @permission_classes([AllowAny])
+54 @parser_classes([JSONParser])
+55 def login_view(request):
+56     username = request.data.get('username')
+57     password = request.data.get('password')
+58     user = authenticate(request, username=username, password=password)
+59     if user is not None:
+60         login(request, user)
+61         return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
+62     return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+63 
+64 # --- ViewSets ---
+65 class UserProfileViewSet(viewsets.ModelViewSet):
+66     serializer_class = UserProfileSerializer
+67     permission_classes = [IsAuthenticated]
+68 
+69     def get_queryset(self):
+70         if getattr(self, 'swagger_fake_view', False):
+71             return UserProfile.objects.none()
+72         if self.request.user.is_staff:
+73             return UserProfile.objects.all()
+74         return UserProfile.objects.filter(user=self.request.user)
+75 
+76     @swagger_auto_schema(
+77         operation_description="Create a new user profile (forbidden, use admin endpoint)",
+78         responses={403: 'User creation forbidden'}
+79     )
+80     def create(self, request, *args, **kwargs):
+81         return Response(
+82             {'error': 'User creation is only allowed via /api/admin/users/create/'},
+83             status=status.HTTP_403_FORBIDDEN
+84         )
+85 
+86 class ResourceViewSet(viewsets.ModelViewSet):
+87     queryset = Resource.objects.all()
+88     serializer_class = ResourceSerializer
+89     permission_classes = [IsAuthenticated]
+90 
+91 class ExpenseViewSet(viewsets.ModelViewSet):
+92     serializer_class = ExpenseSerializer
+93     permission_classes = [IsAuthenticated]
+94 
+95     def get_queryset(self):
+96         if getattr(self, 'swagger_fake_view', False):
+97             return Expense.objects.none()
+98         if self.request.user.is_staff:
+99             return Expense.objects.all()
+100        return Expense.objects.filter(user=self.request.user)
+101 
+102    @swagger_auto_schema(
+103        operation_description="Create a new expense",
+104        request_body=ExpenseSerializer,
+105        responses={201: ExpenseSerializer, 400: 'Invalid data'}
+106    )
+107    def create(self, request, *args, **kwargs):
+108        serializer = self.get_serializer(data=request.data)
+109        serializer.is_valid(raise_exception=True)
+110        user = serializer.validated_data['user']
+111        resource = serializer.validated_data['resource']
+112        start_time = serializer.validated_data['start_time']
+113        end_time = serializer.validated_data['end_time']
+114        is_booking = serializer.validated_data.get('is_booking', False)
+115 
+116        overlapping_expenses = Expense.objects.filter(
+117            resource=resource,
+118            start_time__lte=end_time,
+119            end_time__gte=start_time
+120        )
+121        if overlapping_expenses.exists():
+122            return Response(
+123                {"error": "Resource is not available at this time"},
+124                status=status.HTTP_400_BAD_REQUEST
+125            )
+126 
+127        try:
+128            profile = UserProfile.objects.get(user=user)
+129            budget = Budget.objects.filter(corporate_account_id=profile.corporate_account_id).first()
+130            total_cost = resource.cost_per_hour * (
+131                (end_time - start_time).total_seconds() / 3600
+132            )
+133            current_expenses = Expense.objects.filter(
+134                user__userprofile__corporate_account_id=profile.corporate_account_id
+135            ).aggregate(total=Sum('total_cost'))['total'] or 0
+136            if profile.user_limit and current_expenses + total_cost > profile.user_limit:
+137                Notification.objects.create(
+138                    user=user,
+139                    message=f"User limit exceeded for {user.username} on {resource.name}"
+140                )
+141                return Response(
+142                    {"error": "User limit exceeded"},
+143                    status=status.HTTP_400_BAD_REQUEST
+144                )
+145            if budget and current_expenses + total_cost > budget.limit_amount:
+146                Notification.objects.create(
+147                    user=user,
+148                    message=f"Corporate budget limit exceeded for {user.username} on {resource.name}"
+149                )
+150                return Response(
+151                    {"error": "Corporate budget limit exceeded"},
+152                    status=status.HTTP_400_BAD_REQUEST
+153                )
+154        except UserProfile.DoesNotExist:
+155            return Response(
+156                {"error": "User profile not found"},
+157                status=status.HTTP_400_BAD_REQUEST
+158            )
+159 
+160        self.perform_create(serializer)
+161        headers = self.get_success_headers(serializer.data)
+162        channel_layer = get_channel_layer()
+163        async_to_sync(channel_layer.group_send)(
+164            f"user_{user.id}",
+165            {
+166                "type": "expense_update",
+167                "message": serializer.data
+168            }
+169        )
+170        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+171 
+172 class BudgetViewSet(viewsets.ModelViewSet):
+173     serializer_class = BudgetSerializer
+174     permission_classes = [IsAuthenticated]
+175 
+176     def get_queryset(self):
+177         if getattr(self, 'swagger_fake_view', False):
+178             return Budget.objects.none()
+179         if self.request.user.is_staff:
+180             return Budget.objects.all()
+181         profile = UserProfile.objects.get(user=self.request.user)
+182         return Budget.objects.filter(corporate_account_id=profile.corporate_account_id)
+183 
+184 class ActionLogViewSet(viewsets.ReadOnlyModelViewSet):
+185     queryset = ActionLog.objects.all()
+186     serializer_class = ActionLogSerializer
+187     permission_classes = [IsAdminUser]
+188 
+189 class NotificationViewSet(viewsets.ModelViewSet):
+190     serializer_class = NotificationSerializer
+191     permission_classes = [IsAuthenticated]
+192 
+193     def get_queryset(self):
+194         if getattr(self, 'swagger_fake_view', False):
+195             return Notification.objects.none()
+196         if self.request.user.is_staff:
+197             return Notification.objects.all()
+198         return Notification.objects.filter(user=self.request.user)
+199 
+200     @swagger_auto_schema(
+201         operation_description="List all notifications for the authenticated user or all users (admin only)",
+202         responses={200: NotificationSerializer(many=True)}
+203     )
+204     def list(self, request, *args, **kwargs):
+205         return super().list(request, *args, **kwargs)
+206 
+207     @swagger_auto_schema(
+208         operation_description="Create a new notification (admin only)",
+209         request_body=NotificationSerializer,
+210         responses={201: NotificationSerializer}
+211     )
+212     def create(self, request, *args, **kwargs):
+213         response = super().create(request, *args, **kwargs)
+214         if request.user.is_staff:
+215             ActionLog.objects.create(
+216                 admin=request.user,
+217                 action=f'Created notification for user {request.data.get("user")} at {timezone.now()}'
+218             )
+219         return response
+220 
+221     @swagger_auto_schema(
+222         operation_description="Update a notification (admin only)",
+223         request_body=NotificationSerializer,
+224         responses={200: NotificationSerializer}
+225     )
+226     def update(self, request, *args, **kwargs):
+227         response = super().update(request, *args, **kwargs)
+228         if request.user.is_staff:
+229             ActionLog.objects.create(
+230                 admin=request.user,
+231                 action=f'Updated notification {kwargs.get("pk")} at {timezone.now()}'
+232             )
+233         return response
+234 
+235     @swagger_auto_schema(
+236         operation_description="Delete a notification (admin only)",
+237         responses={204: 'Notification deleted'}
+238     )
+239     def destroy(self, request, *args, **kwargs):
+240         response = super().destroy(request, *args, **kwargs)
+241         if request.user.is_staff:
+242             ActionLog.objects.create(
+243                 admin=request.user,
+244                 action=f'Deleted notification {kwargs.get("pk")} at {timezone.now()}'
+245             )
+246         return response
+247 
+248 class RFIDTagViewSet(viewsets.ModelViewSet):
+249     queryset = RFIDTag.objects.all()
+250     serializer_class = RFIDTagSerializer
+251     permission_classes = [IsAdminUser]
+252 
+253     @swagger_auto_schema(
+254         operation_description="List all RFID tags (admin only)",
+255         responses={200: RFIDTagSerializer(many=True)}
+256     )
+257     def list(self, request, *args, **kwargs):
+258         return super().list(request, *args, **kwargs)
+259 
+260     @swagger_auto_schema(
+261         operation_description="Create a new RFID tag (admin only)",
+262         request_body=RFIDTagSerializer,
+263         responses={201: RFIDTagSerializer}
+264     )
+265     def create(self, request, *args, **kwargs):
+266         response = super().create(request, *args, **kwargs)
+267         ActionLog.objects.create(
+268             admin=request.user,
+269             action=f'Created RFID tag {request.data.get("tag_id")} for user {request.data.get("user")} at {timezone.now()}'
+270         )
+271         return response
+272 
+273     @swagger_auto_schema(
+274         operation_description="Update an RFID tag (admin only)",
+275         request_body=RFIDTagSerializer,
+276         responses={200: RFIDTagSerializer}
+277     )
+278     def update(self, request, *args, **kwargs):
+279         response = super().update(request, *args, **kwargs)
+280         ActionLog.objects.create(
+281             admin=request.user,
+282             action=f'Updated RFID tag {kwargs.get("pk")} at {timezone.now()}'
+283         )
+284         return response
+285 
+286     @swagger_auto_schema(
+287         operation_description="Delete an RFID tag (admin only)",
+288         responses={204: 'RFID tag deleted'}
+289     )
+290     def destroy(self, request, *args, **kwargs):
+291         response = super().destroy(request, *args, **kwargs)
+292         ActionLog.objects.create(
+293             admin=request.user,
+294             action=f'Deleted RFID tag {kwargs.get("pk")} at {timezone.now()}'
+295         )
+296         return response
+297 
+298 # --- Analytics View ---
+299 @swagger_auto_schema(
+300     method='get',
+301     manual_parameters=[
+302         openapi.Parameter('user_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description='User ID'),
+303         openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date', description='Start date (YYYY-MM-DD)'),
+304         openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date', description='End date (YYYY-MM-DD)'),
+305     ],
+306     responses={
+307         200: openapi.Response(
+308             description='Expense and resource usage analytics',
+309             schema=openapi.Schema(
+310                 type=openapi.TYPE_OBJECT,
+311                 properties={
+312                     'total_cost': openapi.Schema(type=openapi.TYPE_NUMBER),
+313                     'resource_usage': openapi.Schema(
+314                         type=openapi.TYPE_ARRAY,
+315                         items=openapi.Schema(
+316                             type=openapi.TYPE_OBJECT,
+317                             properties={
+318                                 'resource_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+319                                 'name': openapi.Schema(type=openapi.TYPE_STRING),
+320                                 'total_usage_hours': openapi.Schema(type=openapi.TYPE_NUMBER),
+321                                 'total_cost': openapi.Schema(type=openapi.TYPE_NUMBER),
+322                             }
+323                         )
+324                     )
+325                 }
+326             )
+327         )
+328     }
+329 )
+330 @api_view(['GET'])
+331 @permission_classes([IsAuthenticated])
+332 def analytics_view(request):
+333     expenses = Expense.objects.all() if request.user.is_staff else Expense.objects.filter(user=request.user)
+334     user_id = request.query_params.get('user_id')
+335     start_date = request.query_params.get('start_date')
+336     end_date = request.query_params.get('end_date')
+337 
+338     if user_id and request.user.is_staff:
+339         expenses = expenses.filter(user_id=user_id)
+340     if start_date:
+341         expenses = expenses.filter(start_time__gte=start_date)
+342     if end_date:
+343         expenses = expenses.filter(end_time__lte=end_date)
+344 
+345     total_cost = expenses.aggregate(total=Sum('total_cost'))['total'] or 0
+346     resource_usage = expenses.values('resource__id', 'resource__name').annotate(
+347         total_usage_hours=Sum(
+348             (models.F('end_time') - models.F('start_time')) / 3600.0
+349         ),
+350         total_cost=Sum('total_cost')
+351     )
+352     return Response({
+353         'total_cost': total_cost,
+354         'resource_usage': resource_usage
+355     }, status=status.HTTP_200_OK)
+356 
+357 # --- PDF Report View ---
+358 @swagger_auto_schema(
+359     method='get',
+360     manual_parameters=[
+361         openapi.Parameter('user_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description='User ID'),
+362         openapi.Parameter('start_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date', description='Start date (YYYY-MM-DD)'),
+363         openapi.Parameter('end_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date', description='End date (YYYY-MM-DD)'),
+364     ],
+365     responses={
+366         200: openapi.Response(description='PDF report generated')
+367     }
+368 )
+369 @api_view(['GET'])
+370 @permission_classes([IsAdminUser])
+371 def expense_report_view(request):
+372     expenses = Expense.objects.all() if request.user.is_staff else Expense.objects.filter(user=request.user)
+373     user_id = request.query_params.get('user_id')
+374     start_date = request.query_params.get('start_date')
+375     end_date = request.query_params.get('end_date')
+376 
+377     if user……
 
+```python
+378     if user_id and request.user.is_staff:
+379         expenses = expenses.filter(user_id=user_id)
+380     if start_date:
+381         expenses = expenses.filter(start_time__gte=start_date)
+382     if end_date:
+383         expenses = expenses.filter(end_time__lte=end_date)
+384 
+385     buffer = io.BytesIO()
+386     p = canvas.Canvas(buffer, pagesize=A4)
+387     p.drawString(100, 800, "Expense Report")
+388     y = 750
+389     for expense in expenses:
+390         p.drawString(100, y, f"{expense.user.username} - {expense.resource.name}: {expense.total_cost} ({expense.start_time} to {expense.end_time})")
+391         y -= 20
+392     p.showPage()
+393     p.save()
+394     buffer.seek(0)
+395     response = HttpResponse(buffer, content_type='application/pdf')
+396     response['Content-Disposition'] = 'attachment; filename="expense_report.pdf"'
+397     return response
+398 
+399 # --- RFID Validation View ---
+400 @swagger_auto_schema(
+401     method='post',
+402     request_body=openapi.Schema(
+403         type=openapi.TYPE_OBJECT,
+404         required=['tag_id'],
+405         properties={
+406             'tag_id': openapi.Schema(type=openapi.TYPE_STRING, description='RFID/NFC tag ID'),
+407         },
+408     ),
+409     responses={
+410         200: openapi.Response(
+411             description='RFID validation result',
+412             schema=openapi.Schema(
+413                 type=openapi.TYPE_OBJECT,
+414                 properties={
+415                     'user_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+416                     'access_granted': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+417                 }
+418             )
+419         ),
+420         400: openapi.Response(description='Invalid tag or no resources')
+421     }
+422 )
+423 @api_view(['POST'])
+424 @permission_classes([AllowAny])
+425 def rfid_validate_view(request):
+426     tag_id = request.data.get('tag_id')
+427     try:
+428         rfid_tag = RFIDTag.objects.get(tag_id=tag_id, is_active=True)
+429         resource = Resource.objects.first()
+430         if not resource:
+431             return Response(
+432                 {'error': 'No resources available'},
+433                 status=status.HTTP_400_BAD_REQUEST
+434             )
+435         Expense.objects.create(
+436             user=rfid_tag.user,
+437             resource=resource,
+438             start_time=timezone.now(),
+439             end_time=timezone.now(),
+440             total_cost=0,
+441             is_booking=False
+442         )
+443         return Response(
+444             {'user_id': rfid_tag.user.id, 'access_granted': True},
+445             status=status.HTTP_200_OK
+446         )
+447     except RFIDTag.DoesNotExist:
+448         return Response(
+449             {'error': 'Invalid or inactive tag'},
+450             status=status.HTTP_400_BAD_REQUEST
+451         )
+452 
+453 # --- Admin Functions ---
+454 @swagger_auto_schema(
+455     method='post',
+456     request_body=openapi.Schema(
+457         type=openapi.TYPE_OBJECT,
+458         required=['username', 'password', 'email', 'corporate_account_id', 'user_limit'],
+459         properties={
+460             'username': openapi.Schema(type=openapi.TYPE_STRING),
+461             'password': openapi.Schema(type=openapi.TYPE_STRING),
+462             'email': openapi.Schema(type=openapi.TYPE_STRING),
+463             'corporate_account_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+464             'user_limit': openapi.Schema(type=openapi.TYPE_NUMBER),
+465         }
+466     ),
+467     responses={201: 'User created', 400: 'Invalid data'}
+468 )
+469 @api_view(['POST'])
+470 @permission_classes([IsAdminUser])
+471 def create_user(request):
+472     username = request.data.get('username')
+473     password = request.data.get('password')
+474     email = request.data.get('email')
+475     corporate_account_id = request.data.get('corporate_account_id')
+476     user_limit = request.data.get('user_limit')
+477 
+478     if not all([username, password, email, corporate_account_id, user_limit]):
+479         return Response(
+480             {'error': 'Missing required fields'},
+481             status=status.HTTP_400_BAD_REQUEST
+482         )
+483 
+484     try:
+485         user = User.objects.create_user(username=username, password=password, email=email)
+486         UserProfile.objects.create(
+487             user=user,
+488             corporate_account_id=corporate_account_id,
+489             user_limit=user_limit
+490         )
+491         ActionLog.objects.create(
+492             admin=request.user,
+493             action=f'Created user {username} at {timezone.now()}'
+494         )
+495         return Response(
+496             {'message': 'User created'},
+497             status=status.HTTP_201_CREATED
+498         )
+499     except Exception as e:
+500         return Response(
+501             {'error': str(e)},
+502             status=status.HTTP_400_BAD_REQUEST
+503         )
+504 
+505 @swagger_auto_schema(
+506     method='delete',
+507     manual_parameters=[openapi.Parameter('user_id', openapi.IN_PATH, type=openapi.TYPE_INTEGER, description='User ID')],
+508     responses={204: 'User deleted', 404: 'User not found'}
+509 )
+510 @api_view(['DELETE'])
+511 @permission_classes([IsAdminUser])
+512 def delete_user(request, user_id):
+513     try:
+514         user = User.objects.get(id=user_id)
+515         username = user.username
+516         UserProfile.objects.filter(user=user).delete()
+517         user.delete()
+518         ActionLog.objects.create(
+519             admin=request.user,
+520             action=f'Deleted user {username} at {timezone.now()}'
+521         )
+522         return Response(
+523             {'message': 'User deleted'},
+524             status=status.HTTP_204_NO_CONTENT
+525         )
+526     except User.DoesNotExist:
+527         return Response(
+528             {'error': 'User not found'},
+529             status=status.HTTP_404_NOT_FOUND
+530         )
+
+В.2 Моделі для управління користувачами, ресурсами, витратами, бюджетами та сповіщеннями.
+
+
+1  from django.db import models
+2  from django.contrib.auth.models import User
+3  from django.utils import timezone
+4  from django.core.mail import send_mail
+5  from django.conf import settings
+6  
+7  class UserProfile(models.Model):
+8      user = models.OneToOneField(User, on_delete=models.CASCADE)
+9      corporate_account_id = models.IntegerField()  # Removed unique=True
+10     user_limit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # MF8
+11 
+12     def __str__(self):
+13         return f"{self.user.username} (Account {self.corporate_account_id})"
+14 
+15 class Resource(models.Model):
+16     name = models.CharField(max_length=100)
+17     cost_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
+18 
+19     def __str__(self):
+20         return self.name
+21 
+22 class Expense(models.Model):
+23     user = models.ForeignKey(User, on_delete=models.CASCADE)
+24     resource = models.ForeignKey(Resource, on_delete=models.CASCADE)
+25     start_time = models.DateTimeField()
+26     end_time = models.DateTimeField()
+27     total_cost = models.DecimalField(max_digits=10, decimal_places=2)
+28     is_booking = models.BooleanField(default=False)  # MF3
+29 
+30     def check_availability(self):
+31         conflicts = Expense.objects.filter(
+32             resource=self.resource,
+33             start_time__lt=self.end_time,
+34             end_time__gt=self.start_time
+35         ).exclude(id=self.id)
+36         return not conflicts.exists()
+37 
+38     def check_budget(self):
+39         profile = UserProfile.objects.get(user=self.user)
+40         budget = Budget.objects.filter(corporate_account_id=profile.corporate_account_id).first()
+41         total_expenses = Expense.objects.filter(
+42             user__userprofile__corporate_account_id=profile.corporate_account_id
+43         ).exclude(id=self.id).aggregate(models.Sum('total_cost'))['total_cost__sum'] or 0
+44 
+45         if profile.user_limit and total_expenses + self.total_cost > profile.user_limit:
+46             return False
+47         if budget and total_expenses + self.total_cost > budget.limit_amount:
+48             return False
+49         return True
+50 
+51     def save(self, *args, **kwargs):
+52         if not self.check_availability():
+53             raise ValueError("Resource is not available at this time")
+54         if not self.check_budget():
+55             Notification.objects.create(
+56                 user=self.user,
+57                 message=f"Budget limit exceeded for {self.user.username} on {self.resource.name}"
+58             )
+59             send_mail(
+60                 subject="Budget Limit Exceeded",
+61                 message=f"User {self.user.username} has exceeded their budget limit on {self.resource.name}.",
+62                 from_email=settings.DEFAULT_FROM_EMAIL,
+63                 recipient_list=[self.user.email],
+64                 fail_silently=True,
+65             )
+66             raise ValueError("Expense exceeds budget limit")
+67         if self.start_time and self.end_time:
+68             time_diff = (self.end_time - self.start_time).total_seconds() / 3600
+69             self.total_cost = time_diff * self.resource.cost_per_hour
+70         super().save(*args, **kwargs)
+71 
+72     def __str__(self):
+73         return f"{self.user.username} - {self.resource.name}"
+74 
+75 class Budget(models.Model):
+76     corporate_account_id = models.IntegerField()
+77     limit_amount = models.DecimalField(max_digits=10, decimal_places=2)
+78 
+79     def __str__(self):
+80         return f"Budget {self.id} for account {self.corporate_account_id}"
+81 
+82 class ActionLog(models.Model):
+83     admin = models.ForeignKey(User, on_delete=models.CASCADE)
+84     action = models.CharField(max_length=255)
+85     timestamp = models.DateTimeField(auto_now_add=True)
+86 
+87     def __str__(self):
+88         return f"{self.admin.username} - {self.action} at {self.timestamp}"
+89 
+90 class Notification(models.Model):
+91     user = models.ForeignKey(User, on_delete=models.CASCADE)
+92     message = models.CharField(max_length=255)
+93     created_at = models.DateTimeField(auto_now_add=True)
+94 
+95     def __str__(self):
+96         return f"Notification for {self.user.username}: {self.message}"
+97 
+98 class RFIDTag(models.Model):
+99     user = models.ForeignKey(User, on_delete=models.CASCADE)
+100    tag_id = models.CharField(max_length=100, unique=True)
+101    is_active = models.BooleanField(default=True)
+102 
+103    def __str__(self):
+104        return f"RFID Tag {self.tag_id} for {self.user.username}"
+
+В.3 Математична обробка даних. Аналіз ресурсів та прогнозування попиту. Код лінійної регресії.
+
+1  from django.db import models
+2  from django.contrib.auth.models import User
+3  from django.utils import timezone
+4  from django.db.models import Sum, Avg, Count
+5  import numpy as np
+6  from scipy import stats
+7  from datetime import timedelta
+8  from .models import Expense, Resource, UserProfile, Budget
+9  
+10 # --- Аналіз ефективності використання ресурсів (MF6-1) ---
+11 def analyze_resource_efficiency(start_date, end_date, user=None):
+12     """
+13     Аналізує ефективність використання ресурсів за період часу.
+14     Повертає статистику: середній час використання, загальні витрати, коефіцієнт завантаженості.
+15     """
+16     filters = {
+17         'start_time__gte': start_date,
+18         'end_time__lte': end_date,
+19     }
+20     if user:
+21         filters['user'] = user
+22 
+23     expenses = Expense.objects.filter(**filters)
+24     total_expenses = expenses.aggregate(total_cost=Sum('total_cost'))['total_cost'] or 0
+25 
+26     # Обчислення середнього часу використання ресурсу (в годинах)
+27     usage_times = [
+28         (expense.end_time - expense.start_time).total_seconds() / 3600
+29         for expense in expenses
+30     ]
+31     avg_usage_time = np.mean(usage_times) if usage_times else 0
+32 
+33     # Обчислення коефіцієнта завантаженості ресурсів
+34     resource_usage = expenses.values('resource__name').annotate(
+35         total_hours=Sum(
+36             (models.F('end_time') - models.F('start_time')) / 3600.0
+37         ),
+38         usage_count=Count('id')
+39     )
+40     total_available_hours = (end_date - start_date).total_seconds() / 3600
+41     occupancy_rates = [
+42         item['total_hours'] / total_available_hours if total_available_hours > 0 else 0
+43         for item in resource_usage
+44     ]
+45     avg_occupancy_rate = np.mean(occupancy_rates) if occupancy_rates else 0
+46 
+47     # Повернення статистики
+48     return {
+49         'total_cost': round(total_cost, 2),
+50         'avg_usage_time': round(avg_usage_time, 2),
+51         'avg_occupancy_rate': round(avg_occupancy_rate, 2),
+52         'resource_breakdown': [
+53             {
+54                 'resource': item['resource__name'],
+55                 'total_hours': round(item['total_hours'], 2),
+56                 'usage_count': item['usage_count']
+57             } for item in resource_usage
+58         ]
+59     }
+60 
+61 # --- Прогнозування попиту на ресурси (MF12-1) ---
+62 def forecast_resource_demand(resource_id, days=30):
+63     """
+64     Прогнозує попит на ресурс на основі історичних даних за допомогою лінійної регресії.
+65     """
+66     resource = Resource.objects.get(id=resource_id)
+67     end_date = timezone.now()
+68     start_date = end_date - timedelta(days=days)
+69 
+70     # Збір історичних даних про використання ресурсу
+71     expenses = Expense.objects.filter(
+72         resource=resource,
+73         start_time__gte=start_date,
+74         end_time__lte=end_date
+75     )
+76 
+77     # Підготовка даних для лінійної регресії
+78     days_list = [(expense.start_time - start_date).days for expense in expenses]
+79     usage_hours = [
+80         (expense.end_time - expense.start_time).total_seconds() / 3600
+81         for expense in expenses
+82     ]
+83 
+84     if not days_list or len(days_list) < 2:
+85         return {'error': 'Недостатньо даних для прогнозування'}
+86 
+87     # Лінійна регресія для прогнозування
+88     slope, intercept, r_value, p_value, std_err = stats.linregress(days_list, usage_hours)
+89     predicted_usage = [slope * (i + days) + intercept for i in range(7)]  # Прогноз на 7 днів
+90 
+91     # Обмеження від'ємних значень
+92     predicted_usage = [max(0, usage) for usage in predicted_usage]
+93 
+94     return {
+95         'resource': resource.name,
+96         'forecasted_hours': [round(usage, 2) for usage in predicted_usage],
+97         'r_squared': round(r_value ** 2, 2),
+98         'confidence': round(1 - p_value, 2)
+99     }
+100
