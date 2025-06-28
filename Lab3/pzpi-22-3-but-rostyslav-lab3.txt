@@ -1,1 +1,574 @@
+Харківський національний університет радіоелектроніки
+Факультет комп’ютерних наук
+Катедра програмної інженерії
 
+
+
+
+
+ЗВІТ
+з лабораторної роботи №3
+з дисципліни «Архітектура програмного забезпечення»
+на тему: «РОЗРОБКА ВЕБКЛІЄНТА СИСТЕМИ»
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Бут Ростислав Сергійович
+
+Перевірив
+ст. викладач катедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+Харків 2025
+
+
+1 ІСТОРІЯ ЗМІН
+
+№	Дата	      Версія звіту	                Опис змін та виправлень
+1	28.06.2025	0.1	Створено структуру звіту. Визначено завдання на дану лабораторну роботу. Створено додатки
+
+
+2 ЗАВДАННЯ
+
+    Метою лабораторної роботи є створення веб-інтерфейсу для системи управління коворкінгом, який забезпечує управління ресурсами, витратами, бюджетами, лімітами, сповіщеннями, аналітикою та користувачами, із підтримкою локалізації та функцій адміністрування.
+
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+
+    Розробка веб-інтерфейсу системи управління коворкінгом розпочалася зі створення адаптивного дизайну, який забезпечує зручну роботу на різних пристроях. Інтерфейс підтримує локалізацію для української та англійської мов із можливістю перемикання через меню навігації. Реалізовано підтримку кодових таблиць символів, форматування дати й часу відповідно до локалі, сортування текстових даних за алфавітом і введення тексту зліва направо. Панель управління відображає дані про витрати, бюджети, ліміти, сповіщення та логи дій для адміністраторів.
+    Для управління ресурсами та витратами створено функціонал перегляду, фільтрації за користувачами, ресурсами та часовими діапазонами, а також видалення записів. Аналітика використання ресурсів базується на ефективних методах агрегації даних, що дозволяють відстежувати тижневі та місячні тренди, і відображається у вигляді таблиць і графіків. Логіка математичної обробки даних реалізована для обчислення статистики використання ресурсів і прогнозування витрат. Адміністратори можуть створювати, редагувати та видаляти бюджети корпоративних акаунтів і ліміти користувачів із підтримкою категорій.
+    Функціонал сповіщень дозволяє налаштовувати пороги витрат і методи доставки повідомлень через електронну пошту або push-сповіщення. Управління користувачами включає створення та редагування профілів, а також перегляд логів дій із фільтрацією за датами. Реалізовано імпорт даних про витрати через завантаження файлів у форматі CSV та експорт у PDF і CSV. Резервне копіювання користувацьких даних забезпечує збереження налаштувань і даних у форматі CSV для подальшого відновлення. Безпека підтримується через аутентифікацію та ізольовані запити до серверної частини.
+    Діаграми, які ілюструють архітектуру системи, включаючи структуру бази даних, прецеденти, компоненти та процеси, наведено в додатку А. Програмний код для реалізації веб-інтерфейсу, логіки взаємодії, математичної обробки даних та резервного копіювання наведено в додатку Б.
+
+
+ВИСНОВКИ
+
+    У результаті виконання лабораторної роботи створено повнофункціональний веб-інтерфейс для системи управління коворкінгом. Реалізовано управління ресурсами, витратами, бюджетами, лімітами, сповіщеннями, аналітикою та користувачами. Інтерфейс підтримує локалізацію з урахуванням кодових таблиць, форматів дати/часу, сортування та напряму введення тексту. Додано імпорт і експорт даних, а також функції адміністрування, включаючи перегляд логів дій і безпечну аутентифікацію. Система забезпечує зручну взаємодію та аналіз даних.
+
+
+ДОДАТОК А
+Графічні матеріали
+
+Рисунок А.1 – ER-діаграма даних
+
+Рисунок А.2 – Структура бази даних
+
+Рисунок А.3 – UML-діаграма прецедентів
+
+
+ДОДАТОК Б
+Програмний код
+
+Б.1 Адміністрування бізнес-логіки системи. Веб-інтерфейс системи управління коворкінгом 
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab3/pzpi-22-3-but-rostyslav-lab3/coworking_system%5Ctemplates%5Cdashboard.html 
+
+  1   {% load i18n static %}
+  2   
+  3   <!DOCTYPE html>
+  4   <html lang="{% get_current_language %}">
+  5   <head>
+  6       <meta charset="UTF-8">
+  7       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  8       <title>{% trans "Coworking Management Dashboard" %}</title>
+  9       <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  10      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  11      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  12      <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+  13      <style>
+  14          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+  15          header { background-color: #007bff; color: white; padding: 10px; }
+  16          nav a { color: white; margin-right: 15px; text-decoration: none; }
+  17          nav select { float: right; }
+  18          section { margin: 20px 0; padding: 20px; background: white; border-radius: 8px; }
+  19          table { width: 100%; border-collapse: collapse; }
+  20          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  21          th { background-color: #007bff; color: white; }
+  22          button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  23          button:hover { background-color: #0056b3; }
+  24      </style>
+  25  </head>
+  26  <body>
+  27      <header>
+  28          <h1>{% trans "Coworking Management System" %}</h1>
+  29          <nav>
+  30              <a href="{% url 'dashboard' %}">{% trans "Dashboard" %}</a>
+  31              {% if user.is_staff %}
+  32              <a href="{% url 'budgets' %}">{% trans "Budgets" %}</a>
+  33              <a href="{% url 'limits' %}">{% trans "Limits" %}</a>
+  34              <a href="{% url 'notifications' %}">{% trans "Notifications" %}</a>
+  35              <a href="{% url 'logs' %}">{% trans "Action Logs" %}</a>
+  36              <a href="{% url 'analytics' %}">{% trans "Analytics" %}</a>
+  37              {% endif %}
+  38              <a href="{% url 'logout' %}">{% trans "Logout" %}</a>
+  39              <select onchange="window.location.href=this.value">
+  40                  <option value="{% url 'set_language' %}?lang=uk" {% if LANGUAGE_CODE == 'uk' %}selected{% endif %}>Українська</option>
+  41                  <option value="{% url 'set_language' %}?lang=en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
+  42              </select>
+  43          </nav>
+  44      </header>
+  45      <main>
+  46          <section id="expenses">
+  47              <h2>{% trans "Expenses Overview" %}</h2>
+  48              <form id="expense-filter">
+  49                  <label>{% trans "User" %}:
+  50                      <select name="user_id">
+  51                          <option value="">{% trans "All Users" %}</option>
+  52                          {% for user in users %}
+  53                          <option value="{{ user.id }}">{{ user.username }}</option>
+  54                          {% endfor %}
+  55                      </select>
+  56                  </label>
+  57                  <label>{% trans "Start Date" %}: <input type="date" name="start_date"></label>
+  58                  <label>{% trans "End Date" %}: <input type="date" name="end_date"></label>
+  59                  <label>{% trans "Resource" %}:
+  60                      <select name="resource_id">
+  61                          <option value="">{% trans "All Resources" %}</option>
+  62                          {% for resource in resources %}
+  63                          <option value="{{ resource.id }}">{{ resource.name }}</option>
+  64                          {% endfor %}
+  65                      </select>
+  66                  </label>
+  67                  <button type="submit">{% trans "Filter" %}</button>
+  68              </form>
+  69              <div style="margin-top: 20px;">
+  70                  <canvas id="expenseChart"></canvas>
+  71              </div>
+  72              <button id="download-pdf">{% trans "Download PDF Report" %}</button>
+  73              <button id="export-csv">{% trans "Export to CSV" %}</button>
+  74              <table>
+  75                  <thead>
+  76                      <tr>
+  77                          <th>{% trans "User" %}</th>
+  78                          <th>{% trans "Resource" %}</th>
+  79                          <th>{% trans "Start Time" %}</th>
+  80                          <th>{% trans "End Time" %}</th>
+  81                          <th>{% trans "Total Cost" %}</th>
+  82                          <th>{% trans "Actions" %}</th>
+  83                      </tr>
+  84                  </thead>
+  85                  <tbody id="expense-table"></tbody>
+  86              </table>
+  87          </section>
+  88          {% if user.is_staff %}
+  89          <section id="budgets">
+  90              <h2>{% trans "Manage Budgets" %}</h2>
+  91              <form id="budget-form">
+  92                  <label>{% trans "Corporate Account ID" %}: <input type="number" name="corporate_account_id" required></label>
+  93                  <label>{% trans "Limit Amount" %}: <input type="number" step="0.01" name="limit_amount" required></label>
+  94                  <label>{% trans "Start Date" %}: <input type="date" name="start_date"></label>
+  95                  <label>{% trans "End Date" %}: <input type="date" name="end_date"></label>
+  96                  <button type="submit">{% trans "Save Budget" %}</button>
+  97              </form>
+  98              <table>
+  99                  <thead>
+  100                     <tr>
+  101                         <th>{% trans "Account ID" %}</th>
+  102                         <th>{% trans "Limit Amount" %}</th>
+  103                         <th>{% trans "Start Date" %}</th>
+  104                         <th>{% trans "End Date" %}</th>
+  105                         <th>{% trans "Actions" %}</th>
+  106                     </tr>
+  107                 </thead>
+  108                 <tbody id="budget-table"></tbody>
+  109             </table>
+  110         </section>
+  111         <section id="limits">
+  112             <h2>{% trans "Manage User Limits" %}</h2>
+  113             <form id="limit-form">
+  114                 <label>{% trans "User" %}:
+  115                     <select name="user_id" required>
+  116                         {% for user in users %}
+  117                         <option value="{{ user.id }}">{{ user.username }}</option>
+  118                         {% endfor %}
+  119                     </select>
+  120                 </label>
+  121                 <label>{% trans "Limit Amount" %}: <input type="number" step="0.01" name="limit_amount" required></label>
+  122                 <label>{% trans "Category" %}: <input type="text" name="category" placeholder="{% trans 'e.g., Meetings' %}"></label>
+  123                 <button type="submit">{% trans "Set Limit" %}</button>
+  124             </form>
+  125             <table>
+  126                 <thead>
+  127                     <tr>
+  128                         <th>{% trans "User" %}</th>
+  129                         <th>{% trans "Limit Amount" %}</th>
+  130                         <th>{% trans "Category" %}</th>
+  131                         <th>{% trans "Actions" %}</th>
+  132                     </tr>
+  133                 </thead>
+  134                 <tbody id="limit-table"></tbody>
+  135             </table>
+  136         </section>
+  137         <section id="notifications">
+  138             <h2>{% trans "Notification Settings" %}</h2>
+  139             <form id="notification-form">
+  140                 <label>{% trans "Email" %}: <input type="email" name="email" required></label>
+  141                 <label>{% trans "Threshold (% of Budget)" %}: <input type="number" name="threshold" min="0" max="100" required></label>
+  142                 <label>{% trans "Notify via" %}:
+  143                     <select name="method">
+  144                         <option value="email">{% trans "Email" %}</option>
+  145                         <option value="push">{% trans "Push Notification" %}</option>
+  146                     </select>
+  147                 </label>
+  148                 <button type="submit">{% trans "Save Notification" %}</button>
+  149             </form>
+  150         </section>
+  151         <section id="logs">
+  152             <h2>{% trans "Action Logs" %}</h2>
+  153             <form id="log-filter">
+  154                 <label>{% trans "Admin" %}:
+  155                     <select name="admin_id">
+  156                         <option value="">{% trans "All Admins" %}</option>
+  157                         {% for admin in admins %}
+  158                         <option value="{{ admin.id }}">{{ admin.username }}</option>
+  159                         {% endfor %}
+  160                     </select>
+  161                 </label>
+  162                 <label>{% trans "Start Date" %}: <input type="date" name="start_date"></label>
+  163                 <button type="submit">{% trans "Filter Logs" %}</button>
+  164             </form>
+  165             <table>
+  166                 <thead>
+  167                     <tr>
+  168                         <th>{% trans "Admin" %}</th>
+  169                         <th>{% trans "Action" %}</th>
+  170                         <th>{% trans "Timestamp" %}</th>
+  171                     </tr>
+  172                 </thead>
+  173                 <tbody id="log-table"></tbody>
+  174             </table>
+  175         </section>
+  176         {% endif %}
+  177     </main>
+  178     <script src="{% static 'js/dashboard.js' %}"></script>
+  179 </body>
+  180 </html>
+
+
+Б.2 Адміністрування бізнес-логіки системи. Логіка фронтенд-взаємодії з сервером 
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab3/pzpi-22-3-but-rostyslav-lab3/coworking_system%5Cstatic%5Cjs%5Cdashboard.js 
+
+  1   document.addEventListener('DOMContentLoaded', () => {
+  2       const token = localStorage.getItem('token');
+  3       const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  4   
+  5       // Fetch and display expenses
+  6       const expenseTable = document.getElementById('expense-table');
+  7       const expenseFilter = document.getElementById('expense-filter');
+  8       const expenseChart = document.getElementById('expenseChart').getContext('2d');
+  9       let chartInstance;
+  10  
+  11      async function fetchExpenses(params = {}) {
+  12          const query = new URLSearchParams(params).toString();
+  13          const response = await fetch(`/api/expenses/?${query}`, { headers });
+  14          const data = await response.json();
+  15          expenseTable.innerHTML = '';
+  16          data.forEach(expense => {
+  17              const row = document.createElement('tr');
+  18              row.innerHTML = `
+  19                  <td>${expense.user}</td>
+  20                  <td>${expense.resource}</td>
+  21                  <td>${moment(expense.start_time).format('LLL')}</td>
+  22                  <td>${moment(expense.end_time).format('LLL')}</td>
+  23                  <td>${expense.total_cost.toFixed(2)}</td>
+  24                  <td><button onclick="deleteExpense(${expense.id})">{% trans "Delete" %}</button></td>
+  25              `;
+  26              expenseTable.appendChild(row);
+  27          });
+  28  
+  29          // Update chart
+  30          const labels = data.map(e => e.resource);
+  31          const costs = data.map(e => e.total_cost);
+  32          if (chartInstance) chartInstance.destroy();
+  33          chartInstance = new Chart(expenseChart, {
+  34              type: 'bar',
+  35              data: {
+  36                  labels,
+  37                  datasets: [
+  38                      {
+  39                          label: '{% trans "Total Cost" %}',
+  40                          data: costs,
+  41                          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+  42                          borderColor: 'rgba(75, 192, 192, 1)',
+  43                          borderWidth: 1
+  44                      }
+  45                  ]
+  46              },
+  47              options: {
+  48                  scales: { y: { beginAtZero: true } },
+  49                  plugins: { legend: { display: true } }
+  50              }
+  51          });
+  52      }
+  53  
+  54      expenseFilter.addEventListener('submit', async (e) => {
+  55          e.preventDefault();
+  56          const formData = new FormData(expenseFilter);
+  57          const params = Object.fromEntries(formData);
+  58          await fetchExpenses(params);
+  59      });
+  60  
+  61      // Download PDF report
+  62      document.getElementById('download-pdf').addEventListener('click', () => {
+  63          const element = document.getElementById('expenses');
+  64          html2pdf().set({
+  65              margin: 1,
+  66              filename: 'expense_report.pdf',
+  67              image: { type: 'jpeg', quality: 0.98 },
+  68              html2canvas: { scale: 2 },
+  69              jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+  70          }).from(element).save();
+  71      });
+  72  
+  73      // Export to CSV
+  74      document.getElementById('export-csv').addEventListener('click', async () => {
+  75          const response = await fetch('/api/expenses/', { headers });
+  76          const data = await response.json();
+  77          const csv = [
+  78              'User,Resource,Start Time,End Time,Total Cost',
+  79              ...data.map(e => `${e.user},${e.resource},${e.start_time},${e.end_time},${e.total_cost}`)
+  80          ].join('\n');
+  81          const blob = new Blob([csv], { type: 'text/csv' });
+  82          const url = URL.createObjectURL(blob);
+  83          const a = document.createElement('a');
+  84          a.href = url;
+  85          a.download = 'expenses.csv';
+  86          a.click();
+  87          URL.revokeObjectURL(url);
+  88      });
+  89  
+  90      // Delete expense
+  91      window.deleteExpense = async (id) => {
+  92          if (confirm('{% trans "Are you sure you want to delete this expense?" %}')) {
+  93              await fetch(`/api/expenses/${id}/`, { method: 'DELETE', headers });
+  94              await fetchExpenses();
+  95          }
+  96      };
+  97  
+  98      // Manage budgets
+  99      const budgetForm = document.getElementById('budget-form');
+  100     const budgetTable = document.getElementById('budget-table');
+  101     if (budgetForm) {
+  102         budgetForm.addEventListener('submit', async (e) => {
+  103             e.preventDefault();
+  104             const formData = new FormData(budgetForm);
+  105             const data = Object.fromEntries(formData);
+  106             await fetch('/api/budgets/', {
+  107                 method: 'POST',
+  108                 headers,
+  109                 body: JSON.stringify(data)
+  110             });
+  111             alert('{% trans "Budget saved successfully" %}');
+  112             fetchBudgets();
+  113         });
+  114 
+  115         async function fetchBudgets() {
+  116             const response = await fetch('/api/budgets/', { headers });
+  117             const data = await response.json();
+  118             budgetTable.innerHTML = '';
+  119             data.forEach(budget => {
+  120                 const row = document.createElement('tr');
+  121                 row.innerHTML = `
+  122                     <td>${budget.corporate_account_id}</td>
+  123                     <td>${budget.limit_amount.toFixed(2)}</td>
+  124                     <td>${budget.start_date || '-'}</td>
+  125                     <td>${budget.end_date || '-'}</td>
+  126                     <td><button onclick="deleteBudget(${budget.id})">{% trans "Delete" %}</button></td>
+  127                 `;
+  128                 budgetTable.appendChild(row);
+  129             });
+  130         }
+  131         fetchBudgets();
+  132     }
+  133 
+  134     // Delete budget
+  135     window.deleteBudget = async (id) => {
+  136         if (confirm('{% trans "Are you sure you want to delete this budget?" %}')) {
+  137             await fetch(`/api/budgets/${id}/`, { method: 'DELETE', headers });
+  138             fetchBudgets();
+  139         }
+  140     };
+  141 
+  142     // Manage limits
+  143     const limitForm = document.getElementById('limit-form');
+  144     const limitTable = document.getElementById('limit-table');
+  145     if (limitForm) {
+  146         limitForm.addEventListener('submit', async (e) => {
+  147             e.preventDefault();
+  148             const formData = new FormData(limitForm);
+  149             const data = Object.fromEntries(formData);
+  150             await fetch('/api/limits/', {
+  151                 method: 'POST',
+  152                 headers,
+  153                 body: JSON.stringify(data)
+  154             });
+  155             alert('{% trans "Limit set successfully" %}');
+  156             fetchLimits();
+  157         });
+  158 
+  159         async function fetchLimits() {
+  160             const response = await fetch('/api/limits/', { headers });
+  161             const data = await response.json();
+  162             limitTable.innerHTML = '';
+  163             data.forEach(limit => {
+  164                 const row = document.createElement('tr');
+  165                 row.innerHTML = `
+  166                     <td>${limit.user}</td>
+  167                     <td>${limit.limit_amount.toFixed(2)}</td>
+  168                     <td>${limit.category || '-'}</td>
+  169                     <td><button onclick="deleteLimit(${limit.id})">{% trans "Delete" %}</button></td>
+  170                 `;
+  171                 limitTable.appendChild(row);
+  172             });
+  173         }
+  174         fetchLimits();
+  175     }
+  176 
+  177     // Delete limit
+  178     window.deleteLimit = async (id) => {
+  179         if (confirm('{% trans "Are you sure you want to delete this limit?" %}')) {
+  180             await fetch(`/api/limits/${id}/`, { method: 'DELETE', headers });
+  181             fetchLimits();
+  182         }
+  183     };
+  184 
+  185     // Manage notifications
+  186     const notificationForm = document.getElementById('notification-form');
+  187     if (notificationForm) {
+  188         notificationForm.addEventListener('submit', async (e) => {
+  189             e.preventDefault();
+  190             const formData = new FormData(notificationForm);
+  191             const data = Object.fromEntries(formData);
+  192             await fetch('/api/notifications/', {
+  193                 method: 'POST',
+  194                 headers,
+  195                 body: JSON.stringify(data)
+  196             });
+  197             alert('{% trans "Notification settings saved" %}');
+  198         });
+  199     }
+  200 
+  201     // Fetch and display logs
+  202     const logTable = document.getElementById('log-table');
+  203     const logFilter = document.getElementById('log-filter');
+  204     if (logTable) {
+  205         async function fetchLogs(params = {}) {
+  206             const query = new URLSearchParams(params).toString();
+  207             const response = await fetch(`/api/action-logs/?${query}`, { headers });
+  208             const data = await response.json();
+  209             logTable.innerHTML = '';
+  210             data.forEach(log => {
+  211                 const row = document.createElement('tr');
+  212                 row.innerHTML = `
+  213                     <td>${log.admin}</td>
+  214                     <td>${log.action}</td>
+  215                     <td>${moment(log.timestamp).format('LLL')}</td>
+  216                 `;
+  217                 row.appendChild(row);
+  218             });
+  219         }
+  220         logFilter.addEventListener('submit', async (e) => {
+  221             e.preventDefault();
+  222             const formData = new FormData(logFilter);
+  223             const params = Object.fromEntries(formData);
+  224             await fetchLogs(params);
+  225         });
+  226         fetchLogs();
+  227     }
+  228 
+  229     // Initial fetch
+  230     fetchExpenses();
+  231 });
+
+
+Б.3 Математична обробка прикладних даних
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab3/pzpi-22-3-but-rostyslav-lab3/api/analytics.py 
+
+  1    from django.db.models import Sum, Avg
+  2    from datetime import datetime, timedelta
+  3    from .models import Expense
+  4    
+  5    def calculate_trends(start_date, end_date):
+  6        expenses = Expense.objects.filter(start_time__range=(start_date, end_date))
+  7        total_cost = expenses.aggregate(total=Sum('total_cost'))['total'] or 0
+  8        avg_cost_per_day = expenses.aggregate(avg=Avg('total_cost'))['avg'] or 0
+  9        resource_usage = expenses.values('resource').annotate(total=Sum('total_cost'))
+  10       weekly_trends = []
+  11       current_date = start_date
+  12       while current_date <= end_date:
+  13           week_end = current_date + timedelta(days=6)
+  14           week_expenses = expenses.filter(start_time__range=(current_date, week_end))
+  15           week_total = week_expenses.aggregate(total=Sum('total_cost'))['total'] or 0
+  16           weekly_trends.append({
+  17               'week_start': current_date,
+  18               'total_cost': week_total
+  19           })
+  20           current_date += timedelta(days=7)
+  21       return {
+  22           'total_cost': total_cost,
+  23           'avg_cost_per_day': avg_cost_per_day,
+  24           'resource_usage': list(resource_usage),
+  25           'weekly_trends': weekly_trends
+  26       }
+  27   
+  28   def predict_expenses(start_date, end_date):
+  29       past_expenses = Expense.objects.filter(start_time__lt=start_date)
+  30       avg_daily_cost = past_expenses.aggregate(avg=Avg('total_cost'))['avg'] or 0
+  31       days = (end_date - start_date).days
+  32       predicted_cost = avg_daily_cost * days
+  33       return {'predicted_cost': predicted_cost}
+
+
+Б.4 Резервне копіювання користувацьких даних
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab3/pzpi-22-3-but-rostyslav-lab3/api/backup.py 
+
+  1    import csv
+  2    import os
+  3    from datetime import datetime
+  4    from .models import Expense, Booking
+  5    
+  6    def backup_user_data(user_id, backup_dir='/app/backups'):
+  7        os.makedirs(backup_dir, exist_ok=True)
+  8        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+  9        filename = f'{backup_dir}/user_{user_id}_backup_{timestamp}.csv'
+  10       expenses = Expense.objects.filter(user_id=user_id)
+  11       bookings = Booking.objects.filter(user_id=user_id)
+  12       with open(filename, 'w', newline='') as csvfile:
+  13           writer = csv.writer(csvfile)
+  14           writer.writerow(['Type', 'Resource', 'Total Cost', 'Start Time', 'End Time'])
+  15           for expense in expenses:
+  16               writer.writerow(['Expense', expense.resource, expense.total_cost, expense.start_time, ''])
+  17           for booking in bookings:
+  18               writer.writerow(['Booking', booking.resource_name, '', booking.start_time, booking.end_time])
+  19       return filename
+  20   
+  21   def restore_user_data(user_id, filename):
+  22       with open(filename, 'r') as csvfile:
+  23           reader = csv.DictReader(csvfile)
+  24           for row in reader:
+  25               if row['Type'] == 'Expense':
+  26                   Expense.objects.create(
+  27                       user_id=user_id,
+  28                       resource=row['Resource'],
+  29                       total_cost=float(row['Total Cost']),
+  30                       start_time=datetime.fromisoformat(row['Start Time'])
+  31                   )
+  32               elif row['Type'] == 'Booking':
+  33                   Booking.objects.create(
+  34                       user_id=user_id,
+  35                       resource_name=row['Resource'],
+  36                       start_time=datetime.fromisoformat(row['Start Time']),
+  37                       end_time=datetime.fromisoformat(row['End Time'])
+  38                   )
