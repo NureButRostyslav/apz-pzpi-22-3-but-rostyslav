@@ -1,0 +1,216 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn coworking_system.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120"
+    volumes:
+      - .:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=coworking_system.settings
+      - DATABASE_URL=postgresql://coworking_user:coworking_pass@db:5432/coworking_db
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1,web,nginx
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=coworking_db
+      - POSTGRES_USER=coworking_user
+      - POSTGRES_PASSWORD=coworking_pass
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coworking_user -d coworking_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    volumes:
+      - db_data:/db_data
+      - backups:/app/backups
+    environment:
+      - BACKUP_DIR=/app/backups
+      - DB_HOST=db
+      - DB_NAME=coworking_db
+      - DB_USER=coworking_user
+      - DB_PASSWORD=coworking_pass
+      - BACKUP_RETENTION_DAYS=7
+    command: >
+      sh -c "while true; do
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S);
+        pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME > /app/backups/db_backup_$TIMESTAMP.sql;
+        find /app/backups -name 'db_backup_*.sql' -mtime +$BACKUP_RETENTION_DAYS -delete;
+        sleep 86400;
+      done"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - coworking_network
+
+  nginx:
+    image: nginx:1.25-alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_volume:/app/static
+      - media_volume:/app/media
+      - ./nginx/certs:/etc/nginx/certs
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A coworking_system worker --loglevel=info --concurrency=4
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=coworking_system.settings
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://coworking_user:coworking_pass@db:5432/coworking_db
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "coworking_system", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A coworking_system beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=coworking_system.settings
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://coworking_user:coworking_pass@db:5432/coworking_db
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "coworking_system", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  grafana:
+    image: grafana/grafana:9.5.2
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=adminpass
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - coworking_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  db_data:
+  backups:
+  static_volume:
+  media_volume:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  coworking_network:
+    driver: bridge
