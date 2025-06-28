@@ -1,1 +1,678 @@
+﻿Харківський національний університет радіоелектроніки
+Факультет комп’ютерних наук
+Катедра програмної інженерії
 
+
+
+
+
+ЗВІТ
+з лабораторної роботи №4
+з дисципліни «Архітектура програмного забезпечення»
+на тему: «РОЗРОБКА МОБІЛЬНОГО КЛІЄНТА СИСТЕМИ»
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Бут Ростислав Сергійович
+
+Перевірив
+ст. викладач катедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+Харків 2025
+
+
+1 ІСТОРІЯ ЗМІН
+
+№	  Дата	        Версія звіту	                  Опис змін та виправлень
+1  	28.06.2025  	0.1	Створено структуру звіту.   Визначено завдання на дану лабораторну роботу. Створено додатки.
+
+
+2 ЗАВДАННЯ
+
+Метою лабораторної роботи є розробка мобільного додатку для Android, який забезпечує управління бронюваннями, витратами, лімітами, сповіщеннями, аналітикою та доступом до ресурсів через NFC, із підтримкою локалізації та ефективної обробки даних.
+
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+	
+Розробка мобільного додатку для Android розпочалася зі створення зручного інтерфейсу, який дозволяє користувачам бронювати ресурси, переглядати витрати, налаштовувати ліміти та сповіщення. Інтерфейс підтримує локалізацію для української та англійської мов із динамічним перемиканням через налаштування, включаючи підтримку кодових таблиць символів, форматування дати й часу, сортування текстових даних і введення тексту зліва направо.
+Функціонал бронювання дозволяє створювати, переглядати та скасовувати бронювання ресурсів із вибором часових інтервалів і отриманням підтверджень. Витрати відображаються у вигляді списку з інформацією про ресурси, суми та дати. Аналітика використання ресурсів включає обчислення загальних витрат і годин використання, використовуючи ефективні методи агрегації для аналізу трендів. Логіка математичної обробки даних реалізована для прогнозування витрат і статистики використання.
+Управління лімітами дозволяє встановлювати ліміти витрат із підтримкою категорій, а сповіщення налаштовуються для інформування про перевищення порогів через електронну пошту або push-повідомлення. Доступ до ресурсів забезпечується через NFC-технологію шляхом сканування тегів. Резервне копіювання користувацьких даних реалізовано через збереження бронювань і витрат у локальний файл у форматі JSON. Обробка помилок забезпечує виведення зрозумілих повідомлень для всіх операцій.
+Діаграми, які ілюструють структуру додатку, взаємодію компонентів і процеси, наведено в додатку А. Програмний код додатку, логіки взаємодії, математичної обробки даних і резервного копіювання наведено в додатку Б.
+
+
+ВИСНОВКИ
+
+У результаті виконання лабораторної роботи створено мобільний додаток для Android, який забезпечує управління бронюваннями, витратами, лімітами, сповіщеннями та аналітикою. Додаток підтримує локалізацію з урахуванням кодових таблиць, форматів дати/часу, сортування та напряму введення тексту. Реалізовано NFC-доступ, ефективну обробку даних і обробку помилок. Користувачі можуть зручно взаємодіяти з системою коворкінгу, аналізувати дані та отримувати сповіщення.
+
+
+ДОДАТОК А
+Графічні матеріали
+
+Рисунок А.1 – ER-діаграма даних
+
+Рисунок А.2 – Структура бази даних
+
+Рисунок А.3 – UML-діаграма прецедентів
+
+
+ДОДАТОК Б
+Програмний код
+
+Б.1 Адміністрування бізнес-логіки системи. Основна логіка мобільного додатку
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab4/pzpi-22-3-but-rostyslav-lab4/MainActivity.kt 
+
+  1    package com.coworking_system
+  2    
+  3    import android.app.PendingIntent
+  4    import android.content.Intent
+  5    import android.nfc.NfcAdapter
+  6    import android.os.Bundle
+  7    import android.widget.Toast
+  8    import androidx.activity.ComponentActivity
+  9    import androidx.activity.compose.setContent
+  10   import androidx.compose.foundation.layout.*
+  11   import androidx.compose.foundation.lazy.LazyColumn
+  12   import androidx.compose.foundation.lazy.items
+  13   import androidx.compose.material3.*
+  14   import androidx.compose.runtime.*
+  15   import androidx.compose.ui.Alignment
+  16   import androidx.compose.ui.Modifier
+  17   import androidx.compose.ui.platform.LocalContext
+  18   import androidx.compose.ui.res.stringResource
+  19   import androidx.compose.ui.text.font.FontWeight
+  20   import androidx.compose.ui.unit.dp
+  21   import androidx.compose.ui.unit.sp
+  22   import com.coworking_system.api.ApiService
+  23   import com.coworking_system.models.*
+  24   import com.google.firebase.messaging.FirebaseMessaging
+  25   import kotlinx.coroutines.launch
+  26   import java.time.LocalDateTime
+  27   import java.time.format.DateTimeFormatter
+  28   import java.util.*
+  29   
+  30   class MainActivity : ComponentActivity() {
+  31       private lateinit var nfcAdapter: NfcAdapter
+  32   
+  33       override fun onCreate(savedInstanceState: Bundle?) {
+  34           super.onCreate(savedInstanceState)
+  35           nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+  36           if (nfcAdapter == null) {
+  37               Toast.makeText(this, getString(R.string.nfc_not_supported), Toast.LENGTH_LONG).show()
+  38           }
+  39           setContent {
+  40               CoworkingApp()
+  41           }
+  42           FirebaseMessaging.getInstance().subscribeToTopic("budget_notifications")
+  43           FirebaseMessaging.getInstance().subscribeToTopic("expense_updates")
+  44           FirebaseMessaging.getInstance().subscribeToTopic("analytics_updates")
+  45       }
+  46   
+  47       override fun onResume() {
+  48           super.onResume()
+  49           if (nfcAdapter != null) {
+  50               val intent = Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+  51               val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+  52               nfcAdapter.enableForegroundDispatch(this, pendingIntent, null, null)
+  53           }
+  54       }
+  55   
+  56       override fun onPause() {
+  57           super.onPause()
+  58           nfcAdapter?.disableForegroundDispatch(this)
+  59       }
+  60   
+  61       override fun onNewIntent(intent: Intent) {
+  62           super.onNewIntent(intent)
+  63           if (NfcAdapter.ACTION_TAG_DISCOVERED == intent.action) {
+  64               val tagId = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID)?.joinToString("") { "%02x".format(it) } ?: ""
+  65               Toast.makeText(this, "${getString(R.string.nfc_detected)}: $tagId", Toast.LENGTH_SHORT).show()
+  66               val scope = kotlinx.coroutines.MainScope()
+  67               scope.launch {
+  68                   try {
+  69                       ApiService.activateAccess(tagId)
+  70                       Toast.makeText(this@MainActivity, R.string.access_granted, Toast.LENGTH_SHORT).show()
+  71                   } catch (e: Exception) {
+  72                       Toast.makeText(this@MainActivity, R.string.access_failed, Toast.LENGTH_SHORT).show()
+  73                   }
+  74               }
+  75           }
+  76       }
+  77   }
+  78   
+  79   @Composable
+  80   fun CoworkingApp() {
+  81       val context = LocalContext.current
+  82       val scope = rememberCoroutineScope()
+  83       var resources by remember { mutableStateOf<List<Resource>>(emptyList()) }
+  84       var selectedResource by remember { mutableStateOf<Resource?>(null) }
+  85       var startTime by remember { mutableStateOf(LocalDateTime.now()) }
+  86       var endTime by remember { mutableStateOf(LocalDateTime.now().plusHours(1)) }
+  87       var expenses by remember { mutableStateOf<List<Expense>>(emptyList()) }
+  88       var bookings by remember { mutableStateOf<List<Booking>>(emptyList()) }
+  89       var limitAmount by remember { mutableStateOf("") }
+  90       var limitCategory by remember { mutableStateOf("") }
+  91       var notificationThreshold by remember { mutableStateOf("") }
+  92       var notificationMethod by remember { mutableStateOf("email") }
+  93       var locale by remember { mutableStateOf(Locale.getDefault().language) }
+  94       var analytics by remember { mutableStateOf<List<Analytics>>(emptyList()) }
+  95       var errorMessage by remember { mutableStateOf("") }
+  96   
+  97       LaunchedEffect(Unit) {
+  98           try {
+  99               resources = ApiService.getResources()
+  100              expenses = ApiService.getExpenses()
+  101              bookings = ApiService.getBookings()
+  102              analytics = ApiService.getAnalytics()
+  103          } catch (e: Exception) {
+  104              errorMessage = e.message ?: context.getString(R.string.error_fetching_data)
+  105          }
+  106      }
+  107  
+  108      Column(modifier = Modifier.padding(16.dp)) {
+  109          Text(
+  110              text = stringResource(id = R.string.app_title),
+  111              style = MaterialTheme.typography.headlineMedium,
+  112              fontWeight = FontWeight.Bold
+  113          )
+  114          Spacer(modifier = Modifier.height(16.dp))
+  115  
+  116          DropdownMenu(
+  117              items = listOf("uk", "en"),
+  118              selectedItem = locale,
+  119              onItemSelected = { lang ->
+  120                  locale = lang
+  121                  val newLocale = Locale(lang)
+  122                  Locale.setDefault(newLocale)
+  123                  val config = context.resources.configuration
+  124                  config.setLocale(newLocale)
+  125                  context.resources.updateConfiguration(config, context.resources.displayMetrics)
+  126              },
+  127              label = stringResource(id = R.string.select_language)
+  128          )
+  129  
+  130          Spacer(modifier = Modifier.height(16.dp))
+  131  
+  132          DropdownMenu(
+  133              items = resources.map { it.name },
+  134              selectedItem = selectedResource?.name ?: "",
+  135              onItemSelected = { name ->
+  136                  selectedResource = resources.find { it.name == name }
+  137              },
+  138              label = stringResource(id = R.string.select_resource)
+  139          )
+  140  
+  141          OutlinedTextField(
+  142              value = startTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+  143              onValueChange = { startTime = LocalDateTime.parse(it) },
+  144              label = { Text(stringResource(id = R.string.start_time)) },
+  145              modifier = Modifier.fillMaxWidth()
+  146          )
+  147          OutlinedTextField(
+  148              value = endTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+  149              onValueChange = { endTime = LocalDateTime.parse(it) },
+  150              label = { Text(stringResource(id = R.string.end_time)) },
+  151              modifier = Modifier.fillMaxWidth()
+  152          )
+  153          Button(
+  154              onClick = {
+  155                  scope.launch {
+  156                      selectedResource?.let {
+  157                          val booking = Booking(
+  158                              resourceId = it.id,
+  159                              startTime = startTime,
+  160                              endTime = endTime
+  161                          )
+  162                          try {
+  163                              val response = ApiService.createBooking(booking)
+  164                              if (response.success) {
+  165                                  Toast.makeText(context, R.string.booking_success, Toast.LENGTH_SHORT).show()
+  166                                  expenses = ApiService.getExpenses()
+  167                                  bookings = ApiService.getBookings()
+  168                              } else {
+  169                                  Toast.makeText(context, response.message ?: context.getString(R.string.booking_failed), Toast.LENGTH_SHORT).show()
+  170                              }
+  171                          } catch (e: Exception) {
+  172                              Toast.makeText(context, e.message ?: context.getString(R.string.booking_failed), Toast.LENGTH_SHORT).show()
+  173                          }
+  174                      }
+  175                  }
+  176              },
+  177              modifier = Modifier.fillMaxWidth()
+  178          ) {
+  179              Text(stringResource(id = R.string.book))
+  180          }
+  181  
+  182          Spacer(modifier = Modifier.height(16.dp))
+  183  
+  184          Text(
+  185              text = stringResource(id = R.string.limit_management),
+  186              style = MaterialTheme.typography.headlineSmall,
+  187              fontSize = 20.sp
+  188          )
+  189          OutlinedTextField(
+  190              value = limitAmount,
+  191              onValueChange = { limitAmount = it },
+  192              label = { Text(stringResource(id = R.string.set_limit)) },
+  193              modifier = Modifier.fillMaxWidth()
+  194          )
+  195          OutlinedTextField(
+  196              value = limitCategory,
+  197              onValueChange = { limitCategory = it },
+  198              label = { Text(stringResource(id = R.string.limit_category)) },
+  199              modifier = Modifier.fillMaxWidth()
+  200          )
+  201          Button(
+  202              onClick = {
+  203                  scope.launch {
+  204                      try {
+  205                          val limit = Limit(
+  206                              userId = ApiService.getCurrentUserId(),
+  207                              amount = limitAmount.toDoubleOrNull() ?: 0.0,
+  208                              category = limitCategory.takeIf { it.isNotBlank() }
+  209                          )
+  210                          ApiService.setLimit(limit)
+  211                          Toast.makeText(context, R.string.limit_set_success, Toast.LENGTH_SHORT).show()
+  212                          limitAmount = ""
+  213                          limitCategory = ""
+  214                      } catch (e: Exception) {
+  215                          Toast.makeText(context, e.message ?: context.getString(R.string.limit_set_failed), Toast.LENGTH_SHORT).show()
+  216                      }
+  217                  }
+  218              },
+  219              modifier = Modifier.fillMaxWidth()
+  220          ) {
+  221              Text(stringResource(id = R.string.save_limit))
+  222          }
+  223  
+  224          Spacer(modifier = Modifier.height(16.dp))
+  225  
+  226          Text(
+  227              text = stringResource(id = R.string.notification_settings),
+  228              style = MaterialTheme.typography.headlineSmall,
+  229              fontSize = 20.sp
+  230          )
+  231          OutlinedTextField(
+  232              value = notificationThreshold,
+  233              onValueChange = { notificationThreshold = it },
+  234              label = { Text(stringResource(id = R.string.notification_threshold)) },
+  235              modifier = Modifier.fillMaxWidth()
+  236          )
+  237          DropdownMenu(
+  238              items = listOf("email", "push"),
+  239              selectedItem = notificationMethod,
+  240              onItemSelected = { notificationMethod = it },
+  241              label = stringResource(id = R.string.notification_method)
+  242          )
+  243          Button(
+  244              onClick = {
+  245                  scope.launch {
+  246                      try {
+  247                          ApiService.setNotificationThreshold(NotificationSettings(notificationThreshold.toDoubleOrNull() ?: 0.0, notificationMethod))
+  248                          Toast.makeText(context, R.string.notification_set_success, Toast.LENGTH_SHORT).show()
+  249                          notificationThreshold = ""
+  250                      } catch (e: Exception) {
+  251                          Toast.makeText(context, e.message ?: context.getString(R.string.notification_set_failed), Toast.LENGTH_SHORT).show()
+  252                      }
+  253                  }
+  254              },
+  255              modifier = Modifier.fillMaxWidth()
+  256          ) {
+  257              Text(stringResource(id = R.string.save_notification))
+  258          }
+  259  
+  260          Spacer(modifier = Modifier.height(16.dp))
+  261  
+  262          Text(
+  263              text = stringResource(id = R.string.recent_bookings),
+  264              style = MaterialTheme.typography.headlineSmall,
+  265              fontSize = 20.sp
+  266          )
+  267          LazyColumn {
+  268              items(bookings) { booking ->
+  269                  Card(modifier = Modifier.padding(8.dp)) {
+  270                      Column(modifier = Modifier.padding(16.dp)) {
+  271                          Text("${stringResource(id = R.string.resource)}: ${booking.resourceName}")
+  272                          Text("${stringResource(id = R.string.start_time)}: ${booking.startTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)}")
+  273                          Text("${stringResource(id = R.string.end_time)}: ${booking.endTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)}")
+  274                          Button(
+  275                              onClick = {
+  276                                  scope.launch {
+  277                                      try {
+  278                                          ApiService.cancelBooking(booking.id)
+  279                                          Toast.makeText(context, R.string.booking_cancel_success, Toast.LENGTH_SHORT).show()
+  280                                          bookings = ApiService.getBookings()
+  281                                          expenses = ApiService.getExpenses()
+  282                                      } catch (e: Exception) {
+  283                                          Toast.makeText(context, e.message ?: context.getString(R.string.booking_cancel_failed), Toast.LENGTH_SHORT).show()
+  284                                      }
+  285                                  }
+  286                              }
+  287                          ) {
+  288                              Text(stringResource(id = R.string.cancel_booking))
+  289                          }
+  290                      }
+  291                  }
+  292              }
+  293          }
+  294  
+  295          Spacer(modifier = Modifier.height(16.dp))
+  296  
+  297          Text(
+  298              text = stringResource(id = R.string.recent_expenses),
+  299              style = MaterialTheme.typography.headlineSmall,
+  300              fontSize = 20.sp
+  301          )
+  302          LazyColumn {
+  303              items(expenses) { expense ->
+  304                  Card(modifier = Modifier.padding(8.dp)) {
+  305                      Column(modifier = Modifier.padding(16.dp)) {
+  306                          Text("${stringResource(id = R.string.resource)}: ${expense.resource}")
+  307                          Text("${stringResource(id = R.string.cost)}: ${expense.totalCost}")
+  308                          Text("${stringResource(id = R.string.start_time)}: ${expense.startTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)}")
+  309                      }
+  310                  }
+  311              }
+  312          }
+  313  
+  314          Spacer(modifier = Modifier.height(16.dp))
+  315  
+  316          Text(
+  317              text = stringResource(id = R.string.analytics),
+  318              style = MaterialTheme.typography.headlineSmall,
+  319              fontSize = 20.sp
+  320          )
+  321          LazyColumn {
+  322              items(analytics) { analytic ->
+  323                  Card(modifier = Modifier.padding(8.dp)) {
+  324                      Column(modifier = Modifier.padding(16.dp)) {
+  325                          Text("${stringResource(id = R.string.resource)}: ${analytic.resource}")
+  326                          Text("${stringResource(id = R.string.total_cost)}: ${analytic.totalCost}")
+  327                          Text("${stringResource(id = R.string.usage_hours)}: ${analytic.usageHours}")
+  328                      }
+  329                  }
+  330              }
+  331          }
+  332  
+  333          if (errorMessage.isNotEmpty()) {
+  334              Spacer(modifier = Modifier.height(16.dp))
+  335              Text(
+  336                  text = errorMessage,
+  337                  color = MaterialTheme.colors.error,
+  338                  modifier = Modifier.align(Alignment.CenterHorizontally)
+  339              )
+  340          }
+  341      }
+  342  }
+  343  
+  344  @Composable
+  345  fun DropdownMenu(
+  346      items: List<String>,
+  347      selectedItem: String,
+  348      onItemSelected: (String) -> Unit,
+  349      label: String
+  350  ) {
+  351      var expanded by remember { mutableStateOf(false) }
+  352  
+  353      Box {
+  354          OutlinedTextField(
+  355              value = selectedItem,
+  356              onValueChange = {},
+  357              label = { Text(label) },
+  358              modifier = Modifier.fillMaxWidth(),
+  359              readOnly = true
+  360          )
+  361          DropdownMenu(
+  362              expanded = expanded,
+  363              onDismissRequest = { expanded = false }
+  364          ) {
+  365              items.forEach { item ->
+  366                  DropdownMenuItem(
+  367                      text = { Text(item) },
+  368                      onClick = {
+  369                          onItemSelected(item)
+  370                          expanded = false
+  371                      }
+  372                  )
+  373              }
+  374          }
+  375          Spacer(modifier = Modifier.matchParentSize().clickable { expanded = true })
+  376      }
+  377  }
+
+
+Б.2 Адміністрування бізнес-логіки системи. Логіка взаємодії з API.
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab4/pzpi-22-3-but-rostyslav-lab4/ApiService.kt 
+
+  1    package com.coworking_system.api
+  2    
+  3    import com.coworking_system.models.*
+  4    import kotlinx.coroutines.Dispatchers
+  5    import kotlinx.coroutines.withContext
+  6    import okhttp3.OkHttpClient
+  7    import retrofit2.Retrofit
+  8    import retrofit2.converter.gson.GsonConverterFactory
+  9    import retrofit2.http.*
+  10   import java.time.LocalDateTime
+  11   import java.util.*
+  12   
+  13   interface ApiInterface {
+  14       @GET("resources/")
+  15       suspend fun getResources(): List<Resource>
+  16   
+  17       @POST("expenses/")
+  18       suspend fun createBooking(@Body booking: Booking): BookingResponse
+  19   
+  20       @GET("expenses/")
+  21       suspend fun getExpenses(): List<Expense>
+  22   
+  23       @GET("bookings/")
+  24       suspend fun getBookings(): List<Booking>
+  25   
+  26       @DELETE("bookings/{id}/")
+  27       suspend fun cancelBooking(@Path("id") id: Int): Response<Unit>
+  28   
+  29       @POST("limits/")
+  30       suspend fun setLimit(@Body limit: Limit): Response<Unit>
+  31   
+  32       @POST("access/")
+  33       suspend fun activateAccess(@Body request: AccessRequest): Response<Unit>
+  34   
+  35       @POST("notifications/")
+  36       suspend fun setNotificationThreshold(@Body settings: NotificationSettings): Response<Unit>
+  37   
+  38       @GET("analytics/")
+  39       suspend fun getAnalytics(): List<Analytics>
+  40   }
+  41   
+  42   data class Resource(val id: Int, val name: String, val costPerHour: Double)
+  43   data class Booking(val id: Int = 0, val resourceId: Int, val resourceName: String = "", val startTime: LocalDateTime, val endTime: LocalDateTime)
+  44   data class Expense(val resource: String, val totalCost: Double, val startTime: LocalDateTime)
+  45   data class Limit(val userId: Int, val amount: Double, val category: String? = null)
+  46   data class AccessRequest(val tagId: String)
+  47   data class NotificationSettings(val threshold: Double, val method: String)
+  48   data class Analytics(val resource: String, val totalCost: Double, val usageHours: Double)
+  49   data class BookingResponse(val success: Boolean, val message: String? = null)
+  50   data class Response<T>(val data: T)
+  51   
+  52   object ApiService {
+  53       private val retrofit = Retrofit.Builder()
+  54           .baseUrl("http://your-server-ip:8000/api/")
+  55           .addConverterFactory(GsonConverterFactory.create())
+  56           .client(OkHttpClient.Builder().addInterceptor { chain ->
+  57               chain.proceed(
+  58                   chain.request().newBuilder()
+  59                       .addHeader("Authorization", "Bearer ${getToken()}")
+  60                       .addHeader("Accept-Language", Locale.getDefault().language)
+  61                       .build()
+  62               )
+  63           }.build())
+  64           .build()
+  65   
+  66       private val api = retrofit.create(ApiInterface::class.java)
+  67   
+  68       private fun getToken(): String {
+  69           return "your-jwt-token"
+  70       }
+  71   
+  72       fun getCurrentUserId(): Int {
+  73           return 1
+  74       }
+  75   
+  76       suspend fun getResources(): List<Resource> = withContext(Dispatchers.IO) {
+  77           api.getResources()
+  78       }
+  79   
+  80       suspend fun createBooking(booking: Booking): BookingResponse = withContext(Dispatchers.IO) {
+  81           try {
+  82               api.createBooking(booking)
+  83           } catch (e: Exception) {
+  84               BookingResponse(success = false, message = e.message)
+  85           }
+  86       }
+  87   
+  88       suspend fun getExpenses(): List<Expense> = withContext(Dispatchers.IO) {
+  89           api.getExpenses()
+  90       }
+  91   
+  92       suspend fun getBookings(): List<Booking> = withContext(Dispatchers.IO) {
+  93           api.getBookings()
+  94       }
+  95   
+  96       suspend fun cancelBooking(id: Int) = withContext(Dispatchers.IO) {
+  97           api.cancelBooking(id)
+  98       }
+  99   
+  100      suspend fun setLimit(limit: Limit) = withContext(Dispatchers.IO) {
+  101          api.setLimit(limit)
+  102      }
+  103  
+  104      suspend fun activateAccess(tagId: String) = withContext(Dispatchers.IO) {
+  105          api.activateAccess(AccessRequest(tagId))
+  106      }
+  107  
+  108      suspend fun setNotificationThreshold(settings: NotificationSettings) = withContext(Dispatchers.IO) {
+  109          api.setNotificationThreshold(settings)
+  110      }
+  111  
+  112      suspend fun getAnalytics(): List<Analytics> = withContext(Dispatchers.IO) {
+  113          api.getAnalytics()
+  114      }
+  115  }
+
+
+Б.3 Математична обробка прикладних даних
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab4/pzpi-22-3-but-rostyslav-lab4/app/src/main/java/com/coworking_system/AnalyticsProcessor.kt 
+
+  1    package com.coworking_system
+  2    
+  3    import com.coworking_system.models.Expense
+  4    import java.time.LocalDateTime
+  5    
+  6    object AnalyticsProcessor {
+  7        fun calculateTrends(expenses: List<Expense>, startDate: LocalDateTime, endDate: LocalDateTime): Map<String, Any> {
+  8            val filteredExpenses = expenses.filter { it.startTime in startDate..endDate }
+  9            val totalCost = filteredExpenses.sumOf { it.totalCost }
+  10           val avgCostPerDay = if (filteredExpenses.isNotEmpty()) totalCost / filteredExpenses.size else 0.0
+  11           val resourceUsage = filteredExpenses.groupBy { it.resource }
+  12               .mapValues { it.value.sumOf { expense -> expense.totalCost } }
+  13           val weeklyTrends = mutableListOf<Map<String, Any>>()
+  14           var currentDate = startDate
+  15           while (currentDate <= endDate) {
+  16               val weekEnd = currentDate.plusDays(6)
+  17               val weekExpenses = filteredExpenses.filter { it.startTime in currentDate..weekEnd }
+  18               val weekTotal = weekExpenses.sumOf { it.totalCost }
+  19               weeklyTrends.add(mapOf("week_start" to currentDate, "total_cost" to weekTotal))
+  20               currentDate = currentDate.plusDays(7)
+  21           }
+  22           return mapOf(
+  23               "total_cost" to totalCost,
+  24               "avg_cost_per_day" to avgCostPerDay,
+  25               "resource_usage" to resourceUsage,
+  26               "weekly_trends" to weeklyTrends
+  27           )
+  28       }
+  29   
+  30       fun predictExpenses(expenses: List<Expense>, startDate: LocalDateTime, endDate: LocalDateTime): Map<String, Double> {
+  31           val pastExpenses = expenses.filter { it.startTime < startDate }
+  32           val avgDailyCost = if (pastExpenses.isNotEmpty()) pastExpenses.sumOf { it.totalCost } / pastExpenses.size else 0.0
+  33           val days = (endDate.toEpochDay() - startDate.toEpochDay()).toInt()
+  34           val predictedCost = avgDailyCost * days
+  35           return mapOf("predicted_cost" to predictedCost)
+  36       }
+  37   }
+
+
+Б.4 Резервне копіювання користувацьких даних
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab4/pzpi-22-3-but-rostyslav-lab4/app/src/main/java/com/coworking_system/BackupManager.kt  
+
+  1    package com.coworking_system
+  2    
+  3    import android.content.Context
+  4    import com.coworking_system.models.Booking
+  5    import com.coworking_system.models.Expense
+  6    import kotlinx.serialization.encodeToString
+  7    import kotlinx.serialization.json.Json
+  8    import java.io.File
+  9    import java.time.LocalDateTime
+  10   import java.time.format.DateTimeFormatter
+  11   
+  12   object BackupManager {
+  13       fun backupUserData(context: Context, userId: Int, expenses: List<Expense>, bookings: List<Booking>): String {
+  14           val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+  15           val backupDir = File(context.filesDir, "backups")
+  16           backupDir.mkdirs()
+  17           val filename = "user_${userId}_backup_$timestamp.json"
+  18           val file = File(backupDir, filename)
+  19           val backupData = mapOf(
+  20               "expenses" to expenses.map { mapOf(
+  21                   "resource" to it.resource,
+  22                   "total_cost" to it.totalCost,
+  23                   "start_time" to it.startTime.toString()
+  24               ) },
+  25               "bookings" to bookings.map { mapOf(
+  26                   "resource_name" to it.resourceName,
+  27                   "start_time" to it.startTime.toString(),
+  28                   "end_time" to it.endTime.toString()
+  29               ) }
+  30           )
+  31           file.writeText(Json.encodeToString(backupData))
+  32           return file.absolutePath
+  33       }
+  34   
+  35       fun restoreUserData(context: Context, filename: String): Pair<List<Expense>, List<Booking>> {
+  36           val file = File(filename)
+  37           val json = file.readText()
+  38           val backupData = Json.decodeFromString<Map<String, List<Map<String, String>>>>(json)
+  39           val expenses = backupData["expenses"]?.map {
+  40               Expense(
+  41                   resource = it["resource"] ?: "",
+  42                   totalCost = it["total_cost"]?.toDouble() ?: 0.0,
+  43                   startTime = LocalDateTime.parse(it["start_time"])
+  44               )
+  45           } ?: emptyList()
+  46           val bookings = backupData["bookings"]?.map {
+  47               Booking(
+  48                   id = 0,
+  49                   resourceId = 0,
+  50                   resourceName = it["resource_name"] ?: "",
+  51                   startTime = LocalDateTime.parse(it["start_time"]),
+  52                   endTime = LocalDateTime.parse(it["end_time"])
+  53               )
+  54           } ?: emptyList()
+  55           return Pair(expenses, bookings)
+  56       }
+  57   }
