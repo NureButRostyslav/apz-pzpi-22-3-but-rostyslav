@@ -1,1 +1,412 @@
+Харківський національний університет радіоелектроніки
+Факультет комп’ютерних наук
+Катедра програмної інженерії
 
+
+
+
+
+ЗВІТ
+з лабораторної роботи №5
+з дисципліни «Архітектура програмного забезпечення»
+на тему: «РОЗГОРТАННЯ СИСТЕМИ»
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Бут Ростислав Сергійович
+
+Перевірив
+ст. викладач катедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+Харків 2025
+
+
+1 ІСТОРІЯ ЗМІН
+
+№	  Дата	      Версія звіту	    Опис змін та виправлень
+1	  23.05.2025	    0.1	          Створено структуру звіту. Визначено завдання на дану лабораторну роботу. Створено додатки.
+
+
+2 ЗАВДАННЯ
+
+    Метою лабораторної роботи є розгортання системи управління коворкінгом у контейнеризованому середовищі з підтримкою масштабності, безпеки, резервного копіювання, моніторингу продуктивності та бізнес-логіки.
+
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+
+    Розгортання системи управління коворкінгом виконано за допомогою контейнеризації з використанням Docker і Docker Compose. Система включає сервіси для веб-додатку, реляційної бази даних, черг завдань, веб-сервера, резервного копіювання та моніторингу. Веб-додаток обробляє запити користувачів і взаємодіє з базою даних, яка забезпечує надійність і масштабованість. Черги завдань налаштовано для асинхронної обробки операцій, таких як сповіщення, аналітика та періодичні завдання.
+    Бізнес-логіка системи реалізує обробку даних про бронювання, витрати, бюджети, ліміти та сповіщення. Математична обробка даних включає агрегацію для аналізу трендів використання ресурсів і прогнозування витрат. Резервне копіювання забезпечує щоденне створення знімків бази даних із видаленням застарілих копій після 7 днів, а також збереження даних користувачів у форматі SQL. Веб-сервер налаштовано для обробки статичних файлів і забезпечення безпеки через HTTPS із підтримкою сертифікатів.
+    Моніторинг продуктивності реалізовано через інструменти збору метрик і їх візуалізації, що дозволяють відстежувати стан сервісів у реальному часі. Всі сервіси об’єднано в ізольовану мережу для підвищення безпеки, а перевірки стану забезпечують стабільність роботи. Локалізація підтримується через налаштування серверної частини, які враховують мовні параметри.
+    Діаграми, які ілюструють архітектуру розгортання, взаємодію сервісів і бізнес-логіку, наведено в додатку А. Програмний код конфігураційних файлів, логіки математичної обробки та резервного копіювання наведено в додатку Б.
+
+
+ВИСНОВКИ
+
+    У результаті виконання лабораторної роботи створено контейнеризоване середовище для системи управління коворкінгом. Реалізовано бізнес-логіку для обробки бронювань, витрат, бюджетів, лімітів і сповіщень, а також підтримку масштабності через реляційну базу даних і черги завдань. Забезпечено безпеку через HTTPS і ізольовану мережу, налаштовано автоматичне резервне копіювання та моніторинг продуктивності. Система готова до стабільної роботи та подальшого масштабування.
+
+
+ДОДАТОК А
+Графічні матеріали
+
+Рисунок А.1 – ER-діаграма даних
+
+Рисунок А.2 – Структура бази даних
+
+Рисунок А.3 – UML-діаграма прецедентів
+
+
+ДОДАТОК Б
+Програмний код
+
+Б.1 Адміністрування бізнес-логіки системи. Конфігурація сервісів для розгортання
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab5/pzpi-22-3-but-rostyslav-lab5/docker-compose 
+
+  1    version: '3.8'
+  2    
+  3    services:
+  4      web:
+  5        build:
+  6          context: .
+  7          dockerfile: Dockerfile
+  8        command: >
+  9          sh -c "python manage.py migrate &&
+  10               python manage.py collectstatic --noinput &&
+  11               gunicorn coworking_system.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120"
+  12       volumes:
+  13         - .:/app
+  14         - static_volume:/app/static
+  15         - media_volume:/app/media
+  16       ports:
+  17         - "8000:8000"
+  18       environment:
+  19         - DJANGO_SETTINGS_MODULE=coworking_system.settings
+  20         - DATABASE_URL=postgresql://coworking_user:coworking_pass@db:5432/coworking_db
+  21         - SECRET_KEY=${SECRET_KEY}
+  22         - DEBUG=False
+  23         - ALLOWED_HOSTS=localhost,127.0.0.1,web,nginx
+  24         - REDIS_URL=redis://redis:6379/0
+  25       depends_on:
+  26         db:
+  27           condition: service_healthy
+  28         redis:
+  29           condition: service_healthy
+  30       networks:
+  31         - coworking_network
+  32       healthcheck:
+  33         test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+  34         interval: 30s
+  35         timeout: 10s
+  36         retries: 5
+  37         start_period: 30s
+  38   
+  39     db:
+  40       image: postgres:15-alpine
+  41       volumes:
+  42         - db_data:/var/lib/postgresql/data
+  43       environment:
+  44         - POSTGRES_DB=coworking_db
+  45         - POSTGRES_USER=coworking_user
+  46         - POSTGRES_PASSWORD=coworking_pass
+  47       networks:
+  48         - coworking_network
+  49       healthcheck:
+  50         test: ["CMD-SHELL", "pg_isready -U coworking_user -d coworking_db"]
+  51         interval: 30s
+  52         timeout: 10s
+  53         retries: 5
+  54         start_period: 30s
+  55   
+  56     redis:
+  57       image: redis:7-alpine
+  58       volumes:
+  59         - redis_data:/data
+  60       networks:
+  61         - coworking_network
+  62       healthcheck:
+  63         test: ["CMD", "redis-cli", "ping"]
+  64         interval: 30s
+  65         timeout: 10s
+  66         retries: 5
+  67         start_period: 10s
+  68   
+  69     backup:
+  70       build:
+  71         context: .
+  72         dockerfile: Dockerfile.backup
+  73       volumes:
+  74         - db_data:/db_data
+  75         - backups:/app/backups
+  76       environment:
+  77         - BACKUP_DIR=/app/backups
+  78         - DB_HOST=db
+  79         - DB_NAME=coworking_db
+  80         - DB_USER=coworking_user
+  81         - DB_PASSWORD=coworking_pass
+  82         - BACKUP_RETENTION_DAYS=7
+  83       command: >
+  84         sh -c "while true; do
+  85           TIMESTAMP=$(date +%Y%m%d_%H%M%S);
+  86           pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME > /app/backups/db_backup_$TIMESTAMP.sql;
+  87           find /app/backups -name 'db_backup_*.sql' -mtime +$BACKUP_RETENTION_DAYS -delete;
+  88           sleep 86400;
+  89         done"
+  90       depends_on:
+  91         db:
+  92           condition: service_healthy
+  93       networks:
+  94         - coworking_network
+  95   
+  96     nginx:
+  97       image: nginx:1.25-alpine
+  98       volumes:
+  99         - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  100        - static_volume:/app/static
+  101        - media_volume:/app/media
+  102        - ./nginx/certs:/etc/nginx/certs
+  103      ports:
+  104        - "80:80"
+  105        - "443:443"
+  106      depends_on:
+  107        web:
+  108          condition: service_healthy
+  109      networks:
+  110        - coworking_network
+  111      healthcheck:
+  112        test: ["CMD", "nginx", "-t"]
+  113        interval: 30s
+  114        timeout: 10s
+  115        retries: 5
+  116        start_period: 10s
+  117  
+  118    celery:
+  119      build:
+  120        context: .
+  121        dockerfile: Dockerfile
+  122      command: celery -A coworking_system worker --loglevel=info --concurrency=4
+  123      volumes:
+  124        - .:/app
+  125      environment:
+  126        - DJANGO_SETTINGS_MODULE=coworking_system.settings
+  127        - REDIS_URL=redis://redis:6379/0
+  128        - DATABASE_URL=postgresql://coworking_user:coworking_pass@db:5432/coworking_db
+  129      depends_on:
+  130        redis:
+  131          condition: service_healthy
+  132        db:
+  133          condition: service_healthy
+  134      networks:
+  135        - coworking_network
+  136      healthcheck:
+  137        test: ["CMD", "celery", "-A", "coworking_system", "inspect", "ping"]
+  138        interval: 30s
+  139        timeout: 10s
+  140        retries: 5
+  141        start_period: 30s
+  142  
+  143    celery-beat:
+  144      build:
+  145        context: .
+  146        dockerfile: Dockerfile
+  147      command: celery -A coworking_system beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+  148      volumes:
+  149        - .:/app
+  150      environment:
+  151        - DJANGO_SETTINGS_MODULE=coworking_system.settings
+  152        - REDIS_URL=redis://redis:6379/0
+  153        - DATABASE_URL=postgresql://coworking_user:coworking_pass@db:5432/coworking_db
+  154      depends_on:
+  155        redis:
+  156          condition: service_healthy
+  157        db:
+  158          condition: service_healthy
+  159      networks:
+  160        - coworking_network
+  161      healthcheck:
+  162        test: ["CMD", "celery", "-A", "coworking_system", "inspect", "ping"]
+  163        interval: 30s
+  164        timeout: 10s
+  165        retries: 5
+  166        start_period: 30s
+  167  
+  168    prometheus:
+  169      image: prom/prometheus:v2.45.0
+  170      volumes:
+  171        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  172        - prometheus_data:/prometheus
+  173      ports:
+  174        - "9090:9090"
+  175      networks:
+  176        - coworking_network
+  177      healthcheck:
+  178        test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
+  179        interval: 30s
+  180        timeout: 10s
+  181        retries: 5
+  182        start_period: 10s
+  183  
+  184    grafana:
+  185      image: grafana/grafana:9.5.2
+  186      volumes:
+  187        - grafana_data:/var/lib/grafana
+  188      environment:
+  189        - GF_SECURITY_ADMIN_USER=admin
+  190        - GF_SECURITY_ADMIN_PASSWORD=adminpass
+  191      ports:
+  192        - "3000:3000"
+  193      depends_on:
+  194        prometheus:
+  195          condition: service_healthy
+  196      networks:
+  197        - coworking_network
+  198      healthcheck:
+  199        test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+  200        interval: 30s
+  201        timeout: 10s
+  202        retries: 5
+  203        start_period: 30s
+  204  
+  205    volumes:
+  206      db_data:
+  207      backups:
+  208      static_volume:
+  209      media_volume:
+  210      redis_data:
+  211      prometheus_data:
+  212      grafana_data:
+  213  
+  214    networks:
+  215      coworking_network:
+  216        driver: bridge
+
+
+Б.2 Адміністрування бізнес-логіки системи. Конфігурація контейнера для веб-додатку
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab5/pzpi-22-3-but-rostyslav-lab5/Dockerfile 
+
+  1    FROM python:3.11-slim
+  2    
+  3    ENV PYTHONUNBUFFERED=1 \
+  4        PYTHONDONTWRITEBYTECODE=1 \
+  5        PIP_NO_CACHE_DIR=off \
+  6        PIP_DISABLE_PIP_VERSION_CHECK=on
+  7    
+  8    WORKDIR /app
+  9    
+  10   RUN apt-get update && apt-get install -y \
+  11       gcc \
+  12       libpq-dev \
+  13       nginx \
+  14       supervisor \
+  15       postgresql-client \
+  16       curl \
+  17       && rm -rf /var/lib/apt/lists/*
+  18   
+  19   COPY requirements.txt .
+  20   RUN pip install --no-cache-dir -r requirements.txt
+  21   RUN pip install celery redis django-celery-beat gunicorn psycopg2-binary
+  22   
+  23   COPY . .
+  24   
+  25   RUN python manage.py collectstatic --noinput
+  26   
+  27   COPY nginx/nginx.conf /etc/nginx/nginx.conf
+  28   COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+  29   
+  30   EXPOSE 8000 80
+  31   
+  32   HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=30s \
+  33       CMD curl -f http://localhost:8000/health/ || exit 1
+  34   
+  35   CMD ["sh", "-c", "python manage.py migrate && supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+
+
+Б.3 Математична обробка прикладних даних
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab5/pzpi-22-3-but-rostyslav-lab5/api/analytics.py 
+
+  1    from django.db.models import Sum, Avg
+  2    from datetime import datetime, timedelta
+  3    from .models import Expense
+  4    
+  5    def calculate_trends(start_date, end_date):
+  6        expenses = Expense.objects.filter(start_time__range=(start_date, end_date))
+  7        total_cost = expenses.aggregate(total=Sum('total_cost'))['total'] or 0
+  8        avg_cost_per_day = expenses.aggregate(avg=Avg('total_cost'))['avg'] or 0
+  9        resource_usage = expenses.values('resource').annotate(total=Sum('total_cost'))
+  10       weekly_trends = []
+  11       current_date = start_date
+  12       while current_date <= end_date:
+  13           week_end = current_date + timedelta(days=6)
+  14           week_expenses = expenses.filter(start_time__range=(current_date, week_end))
+  15           week_total = week_expenses.aggregate(total=Sum('total_cost'))['total'] or 0
+  16           weekly_trends.append({
+  17               'week_start': current_date,
+  18               'total_cost': week_total
+  19           })
+  20           current_date += timedelta(days=7)
+  21       return {
+  22           'total_cost': total_cost,
+  23           'avg_cost_per_day': avg_cost_per_day,
+  24           'resource_usage': list(resource_usage),
+  25           'weekly_trends': weekly_trends
+  26       }
+  27   
+  28   def predict_expenses(start_date, end_date):
+  29       past_expenses = Expense.objects.filter(start_time__lt=start_date)
+  30       avg_daily_cost = past_expenses.aggregate(avg=Avg('total_cost'))['avg'] or 0
+  31       days = (end_date - start_date).days
+  32       predicted_cost = avg_daily_cost * days
+  33       return {'predicted_cost': predicted_cost}
+
+
+Б.4 Резервне копіювання користувацьких даних
+
+GitHub репозиторій: https://github.com/NureButRostyslav/apz-pzpi-22-3-but-rostyslav/blob/main/Lab5/pzpi-22-3-but-rostyslav-lab5/api/backup.py 
+
+  1    import os
+  2    import subprocess
+  3    from datetime import datetime
+  4    
+  5    def backup_database(backup_dir='/app/backups', db_name='coworking_db', db_user='coworking_user', db_password='coworking_pass', db_host='db'):
+  6        os.makedirs(backup_dir, exist_ok=True)
+  7        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+  8        filename = f'{backup_dir}/db_backup_{timestamp}.sql'
+  9        env = os.environ.copy()
+  10       env['PGPASSWORD'] = db_password
+  11       subprocess.run([
+  12           'pg_dump',
+  13           '-h', db_host,
+  14           '-U', db_user,
+  15           '-d', db_name,
+  16           '-f', filename
+  17       ], env=env, check=True)
+  18       subprocess.run([
+  19           'find', backup_dir,
+  20           '-name', 'db_backup_*.sql',
+  21           '-mtime', '+7',
+  22           '-delete'
+  23       ], check=True)
+  24       return filename
+  25   
+  26   def restore_database(filename, db_name='coworking_db', db_user='coworking_user', db_password='coworking_pass', db_host='db'):
+  27       env = os.environ.copy()
+  28       env['PGPASSWORD'] = db_password
+  29       subprocess.run([
+  30           'psql',
+  31           '-h', db_host,
+  32           '-U', db_user,
+  33           '-d', db_name,
+  34           '-f', filename
+  35       ], env=env, check=True)
+  36       return True
